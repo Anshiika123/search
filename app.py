@@ -243,6 +243,10 @@ def search_profiles(keywords, region, api_key, max_results):
             signals = parse_profile_signals(snippet, title)
             region_match = any(p.lower() in full for p in region_parts) if region_parts else False
 
+            # Hard filter: if region specified, skip profiles with no region signal
+            if region_parts and not region_match:
+                continue
+
             score = keyword_score(full, keywords)
             if region_match: score += 3
             score += signals["seniority_score"]
@@ -304,6 +308,10 @@ def search_posts(keywords, region, api_key, max_results):
             signals = parse_profile_signals(snippet, title)
             region_match = any(p.lower() in full for p in region_parts) if region_parts else False
 
+            # Hard filter: if region specified, skip posts with no region signal
+            if region_parts and not region_match:
+                continue
+
             score = keyword_score(full, keywords)
             if region_match: score += 2
             if signals["is_active"]: score += 1
@@ -348,7 +356,12 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
         candidates += search_posts(keywords, region, api_key, max_results)
 
     if not candidates:
-        return {"error": f"No results found for '{topic}'" + (f" in '{region}'" if region else "") + ". Try different keywords."}
+        msg = f"No results found for '{topic}'"
+        if region:
+            msg += f" in '{region}'. Try broader keywords or leave Region empty to search globally."
+        else:
+            msg += ". Try different keywords."
+        return {"error": msg}
 
     candidates.sort(key=lambda x: x[0], reverse=True)
     seen = set()
