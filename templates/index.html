@@ -3,96 +3,81 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LinkedIn Topic Search</title>
+  <title>LinkedIn Search</title>
   <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
-<div class="container">
 
-  <!-- Header -->
-  <div class="header">
-    <div class="logo">in</div>
-    <div style="flex:1">
-      <h1>LinkedIn Topic Search</h1>
-      <p>Search any topic → Get top LinkedIn profiles &amp; posts</p>
-    </div>
-    <a class="btn-linkedin" href="https://www.linkedin.com/feed/" target="_blank">
-      <span class="btn-linkedin-logo">in</span> Open LinkedIn
-    </a>
-  </div>
+<div class="app">
 
-  <!-- API key setup -->
-  <div id="credsSetup" class="creds-setup" style="{% if has_creds %}display:none{% endif %}">
-    <div class="creds-header">⚙️ One-time Setup — SerpAPI (Free, 100 searches/month)</div>
-    <div class="creds-steps">
-      1. <a href="https://serpapi.com" target="_blank">Sign up at serpapi.com</a> — free, no credit card needed<br>
-      2. Copy your API key from the dashboard → paste below
+  <!-- ── TOP BAR ── -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">in</div>
+      <span class="topbar-title">LinkedIn Search</span>
     </div>
-    <div class="creds-row">
-      <input type="text" id="inputApiKey" placeholder="SerpAPI Key" />
-      <button class="btn-save" onclick="saveCreds()">Save &amp; Use</button>
+    <div class="topbar-right">
+      <div id="credsSaved" class="api-status ok" style="{% if not has_creds %}display:none{% endif %}">✅ SerpAPI connected</div>
+      <div id="credsSetup" class="api-status warn" style="{% if has_creds %}display:none{% endif %}">⚠️ No API key</div>
+      <a class="btn-linkedin" href="https://www.linkedin.com/feed/" target="_blank">
+        <span class="btn-linkedin-logo">in</span> Open LinkedIn
+      </a>
     </div>
   </div>
-  <div id="credsSaved" class="key-saved" style="{% if not has_creds %}display:none{% endif %}">✅ SerpAPI connected — real Google results, no bot blocking!</div>
 
-  <!-- Two-column layout -->
-  <div class="layout">
+  <!-- ── API SETUP BANNER ── -->
+  <div id="setupBanner" class="setup-banner" style="{% if has_creds %}display:none{% endif %}">
+    <div class="setup-inner">
+      <b>⚙️ Setup:</b>
+      1. <a href="https://serpapi.com" target="_blank">Sign up at serpapi.com</a> (free) &nbsp;→&nbsp;
+      2. Copy your API key and paste here:
+      <input type="text" id="inputApiKey" class="setup-input" placeholder="SerpAPI key..." />
+      <button class="btn-save" onclick="saveCreds()">Save</button>
+    </div>
+  </div>
 
-    <!-- ── LEFT SIDEBAR ── -->
-    <aside class="sidebar">
+  <!-- ── THREE-PANEL LAYOUT ── -->
+  <div class="panels">
 
-      <div class="sidebar-section">
-        <div class="sidebar-label">🎯 Search Mode</div>
-        <div class="sidebar-tabs">
-          <button class="mode-tab active" data-mode="both"     onclick="setMode(this)">👤 Profiles + Posts</button>
-          <button class="mode-tab"        data-mode="profiles" onclick="setMode(this)">👤 Profiles Only</button>
-          <button class="mode-tab"        data-mode="posts"    onclick="setMode(this)">📄 Posts Only</button>
-        </div>
+    <!-- PANEL 1: Sidebar / Filters -->
+    <aside class="panel-filters">
+
+      <div class="filter-block">
+        <div class="filter-title">Search Mode</div>
+        <button class="ftab active" data-mode="both"     onclick="setMode(this)">👤 Profiles + Posts</button>
+        <button class="ftab"        data-mode="profiles" onclick="setMode(this)">👤 Profiles Only</button>
+        <button class="ftab"        data-mode="posts"    onclick="setMode(this)">📄 Posts Only</button>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-label">📍 Region <span class="label-hint">(optional)</span></div>
-        <input type="text" id="regionCustom" class="sidebar-input"
-               list="regionList"
-               placeholder="e.g. Bangalore, California..." />
+      <div class="filter-block">
+        <div class="filter-title">Region <span class="fhint">optional</span></div>
+        <input type="text" id="regionCustom" class="filter-input"
+               list="regionList" placeholder="e.g. Bangalore, NYC..." />
         <datalist id="regionList">
-          <option value="Bangalore India">
-          <option value="Delhi India">
-          <option value="Mumbai India">
-          <option value="Hyderabad India">
-          <option value="Pune India">
-          <option value="Chennai India">
-          <option value="Noida India">
-          <option value="Gurugram India">
-          <option value="California USA">
-          <option value="New York USA">
-          <option value="San Francisco USA">
-          <option value="Seattle USA">
-          <option value="Chicago USA">
-          <option value="Texas USA">
-          <option value="London UK">
-          <option value="Toronto Canada">
-          <option value="Sydney Australia">
-          <option value="Singapore">
-          <option value="Dubai UAE">
-          <option value="Berlin Germany">
+          <option value="Bangalore India"><option value="Delhi India">
+          <option value="Mumbai India"><option value="Hyderabad India">
+          <option value="Pune India"><option value="Chennai India">
+          <option value="Noida India"><option value="Gurugram India">
+          <option value="California USA"><option value="New York USA">
+          <option value="San Francisco USA"><option value="Seattle USA">
+          <option value="London UK"><option value="Toronto Canada">
+          <option value="Sydney Australia"><option value="Singapore">
+          <option value="Dubai UAE"><option value="Berlin Germany">
         </datalist>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-label">👤 Profile Status</div>
-        <div class="sidebar-tabs">
-          <button class="status-btn active" data-status="all"          onclick="setStatusFilter(this)">🔍 All</button>
-          <button class="status-btn"        data-status="open_to_work" onclick="setStatusFilter(this)">🟢 Open to Work</button>
-          <button class="status-btn"        data-status="working"      onclick="setStatusFilter(this)">💼 Currently Working</button>
-          <button class="status-btn"        data-status="experienced"  onclick="setStatusFilter(this)">⭐ Experienced (3+ yrs)</button>
-        </div>
-        <div class="sidebar-note">⚠️ Approximate — based on Google snippet signals.</div>
+      <div class="filter-block">
+        <div class="filter-title">Profile Status</div>
+        <button class="ftab active" data-status="all"          onclick="setStatus(this)">🔍 All</button>
+        <button class="ftab"        data-status="open_to_work" onclick="setStatus(this)">🟢 Open to Work</button>
+        <button class="ftab"        data-status="working"      onclick="setStatus(this)">💼 Currently Working</button>
+        <button class="ftab"        data-status="experienced"  onclick="setStatus(this)">⭐ Experienced 3+ yrs</button>
+        <div class="filter-note">Based on Google snippet signals.</div>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-label">📊 Results</div>
-        <select id="maxResults" class="sidebar-select">
+      <div class="filter-block">
+        <div class="filter-title">Results Count</div>
+        <select id="maxResults" class="filter-select">
           <option value="5" selected>Top 5</option>
           <option value="10">Top 10</option>
         </select>
@@ -100,43 +85,44 @@
 
     </aside>
 
-    <!-- ── MAIN CONTENT ── -->
-    <main class="main">
-
-      <!-- Search bar -->
-      <div class="search-bar-wrap">
-        <input type="text" id="topic"
-               placeholder="e.g. AI ML Python, data science, digital marketing..."
-               class="search-input" />
-        <button class="btn-search" id="searchBtn" onclick="doSearch()">Search</button>
-      </div>
-
-      <!-- Status -->
+    <!-- PANEL 2: Search -->
+    <section class="panel-search">
+      <div class="search-label">Search LinkedIn</div>
+      <input type="text" id="topic" class="search-input"
+             placeholder="AI Python, data science, digital marketing..." />
+      <button class="btn-search" id="searchBtn" onclick="doSearch()">Search</button>
       <div class="status" id="status" style="display:none"></div>
+    </section>
 
-      <!-- Results -->
-      <div id="results" style="display:none">
-        <div class="results-header">
-          <div>
-            <h2 id="resultsTitle"></h2>
-            <div id="resultsSubtitle" style="font-size:13px;color:#666;margin-top:2px"></div>
-          </div>
-          <button class="btn-export" onclick="exportExcel()">📊 Export Excel</button>
-        </div>
-        <div id="postsList"></div>
+    <!-- PANEL 3: Results -->
+    <section class="panel-results" id="panel-results">
+      <div class="results-empty" id="resultsEmpty">
+        <div class="results-empty-icon">🔍</div>
+        <div>Results will appear here</div>
       </div>
+      <div id="resultsHeader" style="display:none">
+        <div class="results-top">
+          <div>
+            <div class="results-title" id="resultsTitle"></div>
+            <div class="results-sub"  id="resultsSubtitle"></div>
+          </div>
+          <button class="btn-export" onclick="exportExcel()">📊 Export</button>
+        </div>
+      </div>
+      <div id="postsList"></div>
+    </section>
 
-    </main>
-  </div><!-- /layout -->
-
+  </div><!-- /panels -->
 </div>
 
 <script>
   let savedApiKey = localStorage.getItem('serpapi_key') || '';
+  let currentMode = 'both';
+  let currentStatus = 'all';
 
   async function saveCreds() {
     const ak = document.getElementById('inputApiKey').value.trim();
-    if (!ak) { alert('Please enter your SerpAPI key'); return; }
+    if (!ak) { alert('Enter your SerpAPI key'); return; }
     const r = await fetch('/save_creds', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({api_key: ak})
@@ -145,170 +131,139 @@
     if (d.ok) {
       localStorage.setItem('serpapi_key', ak);
       savedApiKey = ak;
+      document.getElementById('setupBanner').style.display = 'none';
       document.getElementById('credsSetup').style.display = 'none';
       document.getElementById('credsSaved').style.display = 'block';
     } else { alert('Error: ' + d.error); }
   }
 
-  let currentMode = 'both';
-  let currentStatusFilter = 'all';
-
-  function setStatusFilter(btn) {
-    document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentStatusFilter = btn.dataset.status;
-  }
-
   function setMode(btn) {
-    document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.ftab[data-mode]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentMode = btn.dataset.mode;
   }
 
+  function setStatus(btn) {
+    document.querySelectorAll('.ftab[data-status]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStatus = btn.dataset.status;
+  }
+
   async function doSearch() {
     const topic = document.getElementById('topic').value.trim();
-    if (!topic) { alert('Please enter a topic!'); return; }
+    if (!topic) { alert('Enter a topic first'); return; }
 
-    const region = document.getElementById('regionCustom').value.trim();
+    const region     = document.getElementById('regionCustom').value.trim();
     const maxResults = parseInt(document.getElementById('maxResults').value);
+    const btn        = document.getElementById('searchBtn');
 
-    const btn = document.getElementById('searchBtn');
-    btn.disabled = true;
-    btn.textContent = 'Searching...';
-
-    let statusMsg = `Searching LinkedIn about "${topic}"`;
-    if (region) statusMsg += ` in ${region}`;
-    if (currentStatusFilter !== 'all') statusMsg += ` · ${currentStatusFilter}`;
-    statusMsg += '...';
-    showStatus(statusMsg, 'loading');
-    document.getElementById('results').style.display = 'none';
+    btn.disabled = true; btn.textContent = 'Searching...';
+    showStatus(`Searching "${topic}"${region ? ' · ' + region : ''}...`, 'loading');
+    document.getElementById('resultsEmpty').style.display   = 'none';
+    document.getElementById('resultsHeader').style.display  = 'none';
+    document.getElementById('postsList').innerHTML = '';
 
     try {
       const res = await fetch('/search', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           topic, max_results: maxResults, region,
-          search_mode: currentMode,
-          status_filter: currentStatusFilter,
+          search_mode: currentMode, status_filter: currentStatus,
           api_key: savedApiKey || localStorage.getItem('serpapi_key') || '',
         })
       });
       const data = await res.json();
-
       if (data.error) {
         showStatus('❌ ' + data.error, 'error');
+        document.getElementById('resultsEmpty').style.display = 'flex';
       } else {
-        showStatus(`Found ${data.count} result${data.count !== 1 ? 's' : ''} for "${data.topic}"`, 'success');
+        showStatus(`✅ Found ${data.count} result${data.count !== 1 ? 's' : ''}`, 'success');
         renderResults(data);
       }
     } catch(e) {
-      showStatus('❌ Error: ' + e.message, 'error');
+      showStatus('❌ ' + e.message, 'error');
     }
 
-    btn.disabled = false;
-    btn.textContent = 'Search';
+    btn.disabled = false; btn.textContent = 'Search';
   }
 
   function getInitials(name) {
-    return name.split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+    return name.split(' ').slice(0,2).map(w => w[0]||'').join('').toUpperCase() || '?';
   }
-
   function avatarColor(name) {
-    const colors = ['#0A66C2','#057642','#8B44AC','#C37D16','#CC1016','#2563eb'];
-    let h = 0;
-    for (let c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
-    return colors[h % colors.length];
+    const c = ['#0A66C2','#057642','#8B44AC','#C37D16','#CC1016','#2563eb'];
+    let h = 0; for (let ch of name) h = (h*31 + ch.charCodeAt(0)) & 0xffff;
+    return c[h % c.length];
   }
 
   function renderResults(data) {
-    document.getElementById('resultsTitle').textContent = `Top ${data.count} Results — "${data.topic}"`;
-    let subtitle = '';
-    if (data.region) subtitle += `📍 ${data.region}`;
-    document.getElementById('resultsSubtitle').textContent = subtitle;
+    document.getElementById('resultsTitle').textContent = `${data.count} result${data.count!==1?'s':''} — "${data.topic}"`;
+    document.getElementById('resultsSubtitle').textContent = data.region ? `📍 ${data.region}` : '';
+    document.getElementById('resultsHeader').style.display = 'block';
+
+    let posts = data.posts;
+    if (currentStatus === 'open_to_work')
+      posts = data.posts.filter(p => p.open_to_work).length ? data.posts.filter(p => p.open_to_work) : data.posts;
+    else if (currentStatus === 'working')
+      posts = data.posts.filter(p => p.current_company && !p.open_to_work).length ? data.posts.filter(p => p.current_company && !p.open_to_work) : data.posts;
+    else if (currentStatus === 'experienced')
+      posts = data.posts.filter(p => p.exp_years >= 3 || p.seniority_score >= 3).length ? data.posts.filter(p => p.exp_years >= 3 || p.seniority_score >= 3) : data.posts;
 
     const list = document.getElementById('postsList');
     list.innerHTML = '';
 
-    // Filtering done in backend — use posts directly
-    const filtered = data.posts;
-    const filterLabels = {'open_to_work':'🟢 Open to Work','working':'💼 Currently Working','experienced':'⭐ Experienced (3+ yrs)'};
-    const filterLabel = filterLabels[data.status_filter] || '';
-    const poolNote = (data.filtered_total > data.count)
-      ? ` (${data.filtered_total} matched from a pool of ${data.total_pool})` : '';
-    document.getElementById('resultsTitle').textContent = filterLabel
-      ? `${filtered.length} ${filterLabel} — "${data.topic}"${poolNote}`
-      : `Top ${filtered.length} Results — "${data.topic}"`;
+    posts.forEach((post, i) => {
+      const bg  = avatarColor(post.author_name);
+      const ini = getInitials(post.author_name);
 
-    filtered.forEach((post, i) => {
-      const initials = getInitials(post.author_name);
-      const bg       = avatarColor(post.author_name);
+      const badges = [
+        post.result_type === 'profile' ? `<span class="badge b-profile">👤 Profile</span>` : `<span class="badge b-post">📄 Post</span>`,
+        post.open_to_work    ? `<span class="badge b-otw">🟢 Open to Work</span>` : '',
+        post.current_company ? `<span class="badge b-company">🏢 ${post.current_company}</span>` : '',
+        post.exp_years > 0   ? `<span class="badge b-exp">📅 ${post.exp_years}+ yrs</span>` : '',
+        post.seniority_score > 0 ? `<span class="badge b-sen">${'⭐'.repeat(Math.min(post.seniority_score,3))} L${post.seniority_score}</span>` : '',
+        post.is_active       ? `<span class="badge b-active">⚡ Active</span>` : '',
+        (data.region && post.region_match) ? `<span class="badge b-region">📍 ${data.region}</span>` : '',
+        post.matched_keywords > 0 ? `<span class="badge b-kw">${post.matched_keywords}/${post.total_keywords} kw</span>` : '',
+      ].join('');
 
-      const typeBadge     = post.result_type === 'profile'
-        ? `<span class="stat-pill type-profile">👤 Profile</span>`
-        : `<span class="stat-pill type-post">📄 Post</span>`;
-      const kwBadge       = post.total_keywords > 0
-        ? `<span class="stat-pill kw-match">${post.matched_keywords}/${post.total_keywords} kw</span>` : '';
-      const regionBadge   = (data.region && post.region_match)
-        ? `<span class="stat-pill region-badge">📍 ${data.region}</span>` : '';
-      const openToWorkBadge = post.open_to_work
-        ? `<span class="stat-pill otw-badge">🟢 Open to Work</span>` : '';
-      const companyBadge  = post.current_company
-        ? `<span class="stat-pill company-badge">🏢 ${post.current_company}</span>` : '';
-      const expBadge      = post.exp_years > 0
-        ? `<span class="stat-pill exp-badge">📅 ${post.exp_years}+ yrs</span>` : '';
-      const senBadge      = post.seniority_score > 0
-        ? `<span class="stat-pill seniority-badge">${'⭐'.repeat(Math.min(post.seniority_score,3))} L${post.seniority_score}</span>` : '';
-      const activeBadge   = post.is_active
-        ? `<span class="stat-pill active-badge">⚡ Active</span>` : '';
-      const jobLine       = post.job_title
-        ? `<div class="id-jobtitle">💼 ${post.job_title}</div>` : '';
-
-      const postBtnLabel = post.post_url_label || '📄 Open Post';
-      const claudePrompt = post.result_type === 'profile'
-        ? `Tell me about this LinkedIn profile: ${post.author_name}\nTitle: ${post.job_title||''}\nCompany: ${post.current_company||''}\nProfile: ${post.profile_url}`
-        : `Analyze this LinkedIn post by ${post.author_name}:\n${post.context}\nURL: ${post.post_url}`;
+      const jobLine = post.job_title ? `<div class="card-jobtitle">💼 ${post.job_title}</div>` : '';
+      const btnLabel = post.post_url_label || '📄 Open Post';
+      const claudeQ  = encodeURIComponent(post.result_type === 'profile'
+        ? `LinkedIn profile: ${post.author_name}\nTitle: ${post.job_title||''}\nCompany: ${post.current_company||''}\nProfile: ${post.profile_url}`
+        : `LinkedIn post by ${post.author_name}:\n${post.context}\nURL: ${post.post_url}`);
 
       list.innerHTML += `
-        <div class="id-card ${post.result_type === 'profile' ? 'id-card-profile' : ''}">
-          <div class="id-card-banner"></div>
-          <div class="id-card-body">
-            <div class="id-avatar" style="background:${bg}">${initials}</div>
-            <div class="id-badge">${i + 1}</div>
-            <div class="id-info">
-              <div class="id-name">
-                ${post.profile_url
-                  ? `<a href="${post.profile_url}" target="_blank">${post.author_name}</a>`
-                  : post.author_name}
+        <div class="result-card ${post.result_type === 'profile' ? 'card-profile' : ''}">
+          <div class="card-banner"></div>
+          <div class="card-body">
+            <div class="card-avatar" style="background:${bg}">${ini}</div>
+            <div class="card-num">${i+1}</div>
+            <div class="card-info">
+              <div class="card-name">
+                ${post.profile_url ? `<a href="${post.profile_url}" target="_blank">${post.author_name}</a>` : post.author_name}
               </div>
               ${jobLine}
-              <div class="id-stats">${typeBadge}${openToWorkBadge}${companyBadge}${expBadge}${senBadge}${activeBadge}${kwBadge}${regionBadge}</div>
-              <div class="id-context">${post.context}</div>
-              <div class="id-actions">
-                ${post.profile_url ? `<a class="id-btn id-btn-outline" href="${post.profile_url}" target="_blank">👤 View Profile</a>` : ''}
-                ${post.post_url    ? `<a class="id-btn id-btn-fill"    href="${post.post_url}"    target="_blank">${postBtnLabel}</a>` : ''}
-                <a class="id-btn id-btn-claude" href="https://claude.ai/new?q=${encodeURIComponent(claudePrompt)}" target="_blank">✨ Ask Claude</a>
+              <div class="card-badges">${badges}</div>
+              <div class="card-context">${post.context}</div>
+              <div class="card-actions">
+                ${post.profile_url ? `<a class="cbtn cbtn-outline" href="${post.profile_url}" target="_blank">👤 Profile</a>` : ''}
+                ${post.post_url    ? `<a class="cbtn cbtn-fill"    href="${post.post_url}"    target="_blank">${btnLabel}</a>` : ''}
+                <a class="cbtn cbtn-claude" href="https://claude.ai/new?q=${claudeQ}" target="_blank">✨ Ask Claude</a>
               </div>
             </div>
           </div>
         </div>`;
     });
-
-    document.getElementById('results').style.display = 'block';
   }
 
   function showStatus(msg, type) {
     const el = document.getElementById('status');
-    el.textContent = msg;
-    el.className = 'status ' + type;
-    el.style.display = 'block';
+    el.textContent = msg; el.className = 'status ' + type; el.style.display = 'block';
   }
 
   function exportExcel() { window.location.href = '/export'; }
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSearch();
-  });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 </script>
 </body>
 </html>
