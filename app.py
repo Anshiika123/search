@@ -135,8 +135,8 @@ TITLE_PATTERNS = [
 ]
 
 
-def extract_signals(title: str, snippet: str) -> dict:
-    text = (title + " " + snippet).lower()
+def parse_profile_signals(snippet: str, title: str) -> dict:
+    text = (snippet + " " + title).lower()
 
     open_to_work = any(s in text for s in OPEN_TO_WORK_SIGNALS)
 
