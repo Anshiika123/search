@@ -237,18 +237,34 @@
     const list = document.getElementById('postsList');
     list.innerHTML = '';
 
-    // Apply status filter client-side
+    // Apply status filter client-side — show ALL matching, not just top N
     let filtered = data.posts;
+    let filterLabel = '';
     if (currentStatusFilter === 'open_to_work') {
       filtered = data.posts.filter(p => p.open_to_work);
-      if (!filtered.length) filtered = data.posts; // fallback: show all if none match
+      filterLabel = '🟢 Open to Work';
     } else if (currentStatusFilter === 'working') {
       filtered = data.posts.filter(p => p.current_company && !p.open_to_work);
-      if (!filtered.length) filtered = data.posts;
+      filterLabel = '💼 Currently Working';
     } else if (currentStatusFilter === 'experienced') {
       filtered = data.posts.filter(p => p.exp_years >= 3 || p.seniority_score >= 3);
-      if (!filtered.length) filtered = data.posts;
+      filterLabel = '⭐ Experienced (3+ yrs)';
     }
+
+    if (currentStatusFilter !== 'all' && filtered.length === 0) {
+      list.innerHTML = `<div class="status error" style="display:block">
+        No profiles matched the <b>${filterLabel}</b> filter in these results.
+        Try switching to <b>All</b> or search with different keywords.
+      </div>`;
+      document.getElementById('results').style.display = 'block';
+      return;
+    }
+
+    // Update count in title
+    document.getElementById('resultsTitle').textContent =
+      currentStatusFilter === 'all'
+        ? `Top ${filtered.length} Results — "${data.topic}"`
+        : `${filtered.length} ${filterLabel} profiles — "${data.topic}"`;
 
     filtered.forEach((post, i) => {
       const initials  = getInitials(post.author_name);
