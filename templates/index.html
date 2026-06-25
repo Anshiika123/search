@@ -245,6 +245,7 @@
         p.is_active           ? `<span class="badge b-active">⚡ Active</span>` : '',
         (data.region && p.region_match) ? `<span class="badge b-region">📍 Region match</span>` : '',
         p.matched_keywords > 0 ? `<span class="badge b-kw">${p.matched_keywords}/${p.total_keywords} keywords</span>` : '',
+        ...(p.portfolio_signals || []).map(s => `<span class="badge b-portfolio">🗂 ${s}</span>`),
       ].join('');
 
       const jobLine  = p.job_title ? `<div class="card-jobtitle">${p.job_title}</div>` : '';

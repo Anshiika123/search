@@ -265,7 +265,8 @@ body {
 .b-sen     { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
 .b-active  { background: #fefce8; color: #a16207; border-color: #fde047; }
 .b-region  { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-.b-kw      { background: #f8fafc; color: #64748b; border-color: #cbd5e1; }
+.b-kw        { background: #f8fafc; color: #64748b; border-color: #cbd5e1; }
+.b-portfolio { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }
 
 /* ── Card context ────────────────────────────────────────────── */
 .card-context {
