@@ -104,14 +104,19 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
                 break
 
     job_title = ""
-    title_clean = re.sub(r'\s*\|.*', '', title).strip()
-    title_clean = re.sub(r'\s*-\s*(LinkedIn|Profile).*', '', title_clean, flags=re.I).strip()
-    title_clean = re.sub(r'\s+on\s+LinkedIn.*', '', title_clean, flags=re.I).strip()
-    parts = re.split(r'\s*[-–|·]\s*', title_clean)
+    # Strip LinkedIn suffix first
+    title_clean = re.sub(r'\s*\|\s*LinkedIn.*$', '', title, flags=re.I).strip()
+    title_clean = re.sub(r'\s+on\s+LinkedIn.*$', '', title_clean, flags=re.I).strip()
+    title_clean = re.sub(r'\s*-\s*LinkedIn.*$', '', title_clean, flags=re.I).strip()
+    # Split: first part = name, second part = job title
+    parts = re.split(r'\s*[-–|·]\s*', title_clean, maxsplit=1)
     if len(parts) >= 2:
-        job_title = parts[1].strip()
-    elif len(parts) == 1 and len(parts[0]) < 80:
-        job_title = parts[0].strip()
+        candidate = parts[1].strip()
+        # Remove trailing ", MS" / ", PhD" / "..." artifacts
+        candidate = re.sub(r',\s*(MS|MBA|PhD|BSc|MSc|BE|BTech|MTech|CPA|CFA)\.?\s*\.{0,3}$', '', candidate, flags=re.I).strip()
+        candidate = re.sub(r'\s*\.{2,}$', '', candidate).strip()
+        if len(candidate) > 3:
+            job_title = candidate
 
     seniority_score = 0
     seniority_keywords = {
@@ -163,30 +168,59 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
 
 
 
+def clean_author_name(raw: str) -> str:
+    """Convert slug or raw title fragment into a proper human name."""
+    # Remove trailing junk: ", MS", ", PhD", "| something", "- something"
+    raw = re.sub(r'[,|·–\-]\s*(MS|MBA|PhD|BSc|MSc|BE|BTech|MTech|CPA|CFA)\.?.*$', '', raw, flags=re.I).strip()
+    raw = re.sub(r'[|·–].*$', '', raw).strip()
+    # If it looks like a slug (no spaces, mostly lowercase), split on hyphens
+    if ' ' not in raw and '-' in raw:
+        raw = raw.replace('-', ' ')
+    # Title-case each word, keep short words lowercase (a, of, at etc.)
+    words = raw.split()
+    stop = {'a','an','the','of','at','in','on','and','or','for','to'}
+    name = ' '.join(w.capitalize() if w.lower() not in stop or i == 0 else w
+                    for i, w in enumerate(words))
+    return name.strip() or "LinkedIn User"
+
+
 def extract_author(url: str, title: str) -> tuple:
     author_name = "LinkedIn User"
     profile_url = ""
     clean = re.sub(r'<[^>]+>', '', title).strip()
+
+    # Try to get name from title — order matters
     if " on LinkedIn" in clean:
         author_name = clean.split(" on LinkedIn")[0].strip()
-    elif " - " in clean and "LinkedIn" in clean:
-        author_name = clean.split(" - ")[0].strip()
     elif " | LinkedIn" in clean:
         author_name = clean.split(" | LinkedIn")[0].strip()
+    elif " - LinkedIn" in clean:
+        author_name = clean.split(" - LinkedIn")[0].strip()
+    elif " - " in clean and "LinkedIn" in clean:
+        author_name = clean.split(" - ")[0].strip()
+
+    # Strip job title from name if present (e.g. "Aaron Hall - Python Instructor | LinkedIn")
+    # Name is usually first 1-3 words before a dash/pipe
+    if author_name and author_name != "LinkedIn User":
+        # If it contains " - " the first part is the name
+        parts = re.split(r'\s*[-–|·]\s*', author_name)
+        author_name = parts[0].strip()
+
+    author_name = clean_author_name(author_name)
 
     slug_m = re.search(r'linkedin\.com/in/([a-zA-Z0-9][a-zA-Z0-9\-]+)', url)
     if slug_m:
         slug = re.sub(r'-\d{10,}.*$', '', slug_m.group(1)).strip('-')
         profile_url = f"https://www.linkedin.com/in/{slug}"
         if author_name == "LinkedIn User":
-            author_name = slug.replace("-", " ").title()
+            author_name = clean_author_name(slug)
 
     slug_m2 = re.search(r'linkedin\.com/posts/([a-zA-Z0-9][a-zA-Z0-9\-]+)', url)
     if slug_m2 and not profile_url:
         slug = re.sub(r'-\d{10,}.*$', '', slug_m2.group(1)).strip('-')
         profile_url = f"https://www.linkedin.com/in/{slug}"
         if author_name == "LinkedIn User":
-            author_name = slug.replace("-", " ").title()
+            author_name = clean_author_name(slug)
 
     return author_name, profile_url
 
