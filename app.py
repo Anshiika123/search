@@ -103,6 +103,19 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
         r'\b(\d+[hm]\s*ago|today|yesterday|just now|\d+\s*days?\s*ago|this week)\b', text
     ))
 
+    # Portfolio signals
+    portfolio_checks = {
+        "GitHub":    ["github", "github.com"],
+        "Open Source": ["open source", "opensource", "open-source", "contributor"],
+        "Built":     ["built ", "i built", "we built", "developed ", "created "],
+        "Launched":  ["launched", "shipped", "released", "deployed"],
+        "Patent":    ["patent", "patented", "inventor"],
+        "Speaker":   ["speaker", "keynote", "ted talk", "conference"],
+        "Published": ["published", "author of", "wrote a book", "research paper"],
+    }
+    portfolio_signals = [label for label, kws in portfolio_checks.items() if any(kw in text for kw in kws)]
+    portfolio_score = len(portfolio_signals)
+
     return {
         "current_company": current_company,
         "job_title": job_title,
@@ -110,73 +123,11 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
         "seniority_score": seniority_score,
         "exp_years": exp_years,
         "is_active": is_active,
+        "portfolio_signals": portfolio_signals,
+        "portfolio_score": portfolio_score,
     }
 
 
-SENIORITY_WORDS = {
-    5: ["vp ", "vice president", "cto", "ceo", "coo", "chief", "director", "head of"],
-    4: ["principal", "staff ", "distinguished", "partner"],
-    3: ["senior ", "sr.", "sr ", "lead ", "manager", "architect"],
-    2: ["mid ", "software engineer", "data scientist", "analyst"],
-    1: ["junior", "jr.", "jr ", "associate", "intern", "fresher"],
-}
-OPEN_TO_WORK_SIGNALS = ["open to work", "open to opportunities", "seeking opportunities", "looking for", "available for", "#opentowork"]
-CURRENT_WORK_PATTERNS = [
-    r'(?:at|@)\s+([A-Z][A-Za-z0-9& ]{2,30})',
-    r'([A-Z][A-Za-z0-9& ]{2,25})\s+(?:\||-)\s+LinkedIn',
-]
-EXP_PATTERNS = [
-    r'(\d+)\+?\s*(?:years?|yrs?)(?:\s+of)?\s+(?:experience|exp)',
-    r'(\d+)\s*-\s*\d+\s*(?:years?|yrs?)',
-]
-TITLE_PATTERNS = [
-    r'(?:^|·\s*)([A-Z][A-Za-z ,&/]+?)\s+(?:at|@|\||–|-)\s+',
-    r'([A-Z][A-Za-z ,&/]+?)\s+-\s+LinkedIn',
-]
-
-
-def parse_profile_signals(snippet: str, title: str) -> dict:
-    text = (snippet + " " + title).lower()
-
-    open_to_work = any(s in text for s in OPEN_TO_WORK_SIGNALS)
-
-    company = ""
-    for pat in CURRENT_WORK_PATTERNS:
-        m = re.search(pat, title + " " + snippet)
-        if m:
-            company = m.group(1).strip()
-            break
-
-    exp_years = 0
-    for pat in EXP_PATTERNS:
-        m = re.search(pat, text)
-        if m:
-            exp_years = int(m.group(1))
-            break
-
-    seniority = 0
-    for level, words in SENIORITY_WORDS.items():
-        if any(w in text for w in words):
-            seniority = level
-            break
-
-    job_title = ""
-    for pat in TITLE_PATTERNS:
-        m = re.search(pat, title)
-        if m:
-            job_title = m.group(1).strip()
-            break
-
-    is_active = any(w in text for w in ["just posted", "1h", "2h", "today", "this week"])
-
-    return {
-        "open_to_work": open_to_work,
-        "current_company": company,
-        "exp_years": exp_years,
-        "seniority_score": seniority,
-        "job_title": job_title,
-        "is_active": is_active,
-    }
 
 
 def extract_author(url: str, title: str) -> tuple:
