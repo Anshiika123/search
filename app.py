@@ -191,7 +191,7 @@ def extract_author(url: str, title: str) -> tuple:
     return author_name, profile_url
 
 
-def search_profiles(keywords, region, api_key, max_results):
+def search_profiles(keywords, region, api_key, max_results, status_filter="all"):
     kw = " ".join(keywords)
     region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
     region_q = " ".join(region_parts[:2]) if region_parts else ""
@@ -253,7 +253,7 @@ def search_profiles(keywords, region, api_key, max_results):
     return candidates
 
 
-def search_posts(keywords, region, api_key, status_filter="all"):
+def search_posts(keywords, region, api_key):
     kw = " ".join(keywords)
     region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
     region_q = " ".join(region_parts[:2]) if region_parts else ""
@@ -330,9 +330,9 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
 
     candidates = []
     if search_mode in ("profiles", "both"):
-        candidates += search_profiles(keywords, region, api_key, fetch_size)
+        candidates += search_profiles(keywords, region, api_key, fetch_size, status_filter)
     if search_mode in ("posts", "both"):
-        candidates += search_posts(keywords, region, api_key, fetch_size)
+        candidates += search_posts(keywords, region, api_key)
 
     if not candidates:
         msg = f"No results found for '{topic}'"
