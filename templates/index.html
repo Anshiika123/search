@@ -168,11 +168,25 @@
     const btn        = document.getElementById('searchBtn');
 
     btn.disabled = true;
-    btn.textContent = 'Searching...';
-    showStatus(`Searching LinkedIn for "${topic}"${region ? ' in ' + region : ''}...`, 'loading');
+    btn.textContent = '⏳ Searching...';
     document.getElementById('resultsEmpty').style.display  = 'none';
     document.getElementById('resultsHeader').style.display = 'none';
     document.getElementById('postsList').innerHTML = '';
+
+    // Animated progress steps
+    const steps = [
+      '🔍 Searching LinkedIn profiles...',
+      '📄 Fetching posts & articles...',
+      '🧠 Ranking by experience & skills...',
+      '✨ Applying filters...',
+      '📊 Almost done, preparing results...',
+    ];
+    let stepIdx = 0;
+    showProgress(steps[0], 10);
+    const stepTimer = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+      showProgress(steps[stepIdx], Math.min(20 + stepIdx * 18, 90));
+    }, 2000);
 
     try {
       const res  = await fetch('/search', {
@@ -184,15 +198,20 @@
         })
       });
       const data = await res.json();
+      clearInterval(stepTimer);
 
       if (data.error) {
         showStatus('❌ ' + data.error, 'error');
         document.getElementById('resultsEmpty').style.display = 'block';
       } else {
-        showStatus(`✅ Found ${data.count} result${data.count !== 1 ? 's' : ''} for "${data.topic}"`, 'success');
-        renderResults(data);
+        showProgress('✅ Done!', 100);
+        setTimeout(() => {
+          showStatus(`✅ Found ${data.count} result${data.count !== 1 ? 's' : ''} for "${data.topic}"`, 'success');
+          renderResults(data);
+        }, 400);
       }
     } catch (e) {
+      clearInterval(stepTimer);
       showStatus('❌ Network error: ' + e.message, 'error');
     }
 
@@ -280,9 +299,20 @@
     });
   }
 
+  function showProgress(msg, pct) {
+    const el = document.getElementById('status');
+    el.className = 'status loading';
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="margin-bottom:8px;font-weight:600">${msg}</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" style="width:${pct}%"></div>
+      </div>`;
+  }
+
   function showStatus(msg, type) {
     const el = document.getElementById('status');
-    el.textContent = msg;
+    el.innerHTML = msg;
     el.className = 'status ' + type;
     el.style.display = 'block';
   }
