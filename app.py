@@ -353,7 +353,19 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
             seen.add(key)
             all_posts.append(p)
 
-    # Apply status filter on the full pool, then limit to max_results
+    # Hard region filter: when a region is set, only show results from that region.
+    # If too few region matches, supplement with non-region results to reach max_results.
+    region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
+    if region_parts:
+        in_region  = [p for p in all_posts if p.get("region_match")]
+        out_region = [p for p in all_posts if not p.get("region_match")]
+        if len(in_region) >= max_results:
+            all_posts = in_region                        # enough — show only region
+        elif in_region:
+            all_posts = in_region + out_region           # supplement to hit count
+        # else: no region signals detected in snippets → keep all (fallback)
+
+    # Apply status filter on the (region-filtered) pool, then limit to max_results
     if status_filter == "open_to_work":
         filtered = [p for p in all_posts if p.get("open_to_work")]
     elif status_filter == "working":
@@ -364,6 +376,12 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
                     p.get("seniority_score", 0) >= 1]
     else:
         filtered = all_posts
+
+    # If status filter is too strict and leaves fewer results than requested,
+    # supplement with the best unfiltered results so we always approach max_results.
+    if len(filtered) < max_results and status_filter != "all":
+        supplement = [p for p in all_posts if p not in filtered]
+        filtered = filtered + supplement
 
     posts = filtered[:max_results]
 
