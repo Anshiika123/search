@@ -26,7 +26,7 @@ def keyword_score(text: str, keywords: list) -> int:
     return sum(1 for kw in keywords if kw in t)
 
 
-def serpapi_search(query: str, api_key: str, num: int = 10) -> list:
+def serpapi_search(query: str, api_key: str, num: int = 10, start: int = 0) -> list:
     """Call SerpAPI Google Search. Returns list of organic results."""
     try:
         resp = requests.get("https://serpapi.com/search", params={
@@ -34,6 +34,7 @@ def serpapi_search(query: str, api_key: str, num: int = 10) -> list:
             "api_key": api_key,
             "engine": "google",
             "num": num,
+            "start": start,
             "hl": "en",
         }, timeout=15)
         data = resp.json()
@@ -44,6 +45,19 @@ def serpapi_search(query: str, api_key: str, num: int = 10) -> list:
     except Exception as e:
         print(f"SerpAPI request failed: {e}")
         return []
+
+
+def serpapi_search_all(query: str, api_key: str, total: int = 30) -> list:
+    """Fetch multiple pages from SerpAPI to get a bigger pool of results."""
+    all_results = []
+    for start in range(0, total, 10):
+        results = serpapi_search(query, api_key, num=10, start=start)
+        if not results:
+            break
+        all_results.extend(results)
+        if len(all_results) >= total:
+            break
+    return all_results
 
 
 def parse_profile_signals(snippet: str, title: str) -> dict:
@@ -178,9 +192,7 @@ def search_profiles(keywords, region, api_key, max_results):
     seen = set()
 
     for query in queries:
-        if len(candidates) >= max_results:
-            break
-        items = serpapi_search(query, api_key, num=10)
+        items = serpapi_search_all(query, api_key, total=30)
         for item in items:
             url     = item.get("link", "")
             title   = item.get("title", "")
@@ -245,9 +257,7 @@ def search_posts(keywords, region, api_key, max_results):
     seen = set()
 
     for query in queries:
-        if len(candidates) >= max_results:
-            break
-        items = serpapi_search(query, api_key, num=10)
+        items = serpapi_search_all(query, api_key, total=30)
         for item in items:
             url     = item.get("link", "")
             title   = item.get("title", "")
