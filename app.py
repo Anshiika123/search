@@ -442,6 +442,7 @@ def search():
         verified_only=bool(data.get("verified_only", False)),
         search_mode=data.get("search_mode", "both"),
         api_key=data.get("api_key", "").strip(),
+        status_filter=data.get("status_filter", "all"),
     )
     if "posts" in result:
         search_results["last"] = result
