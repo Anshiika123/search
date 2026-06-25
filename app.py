@@ -196,28 +196,19 @@ def search_profiles(keywords, region, api_key, max_results):
     region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
     region_q = " ".join(region_parts[:2]) if region_parts else ""
 
-    queries = []
-    if region_q:
-        queries += [f'site:linkedin.com/in/ "{kw}" "{region_q}"']
-        queries += [f'site:linkedin.com/in/ {kw} {region_q}']
-        # extra variations per keyword for bigger pool
-        for single_kw in keywords[:3]:
-            queries.append(f'site:linkedin.com/in/ {single_kw} {region_q}')
-    queries += [f'site:linkedin.com/in/ {kw}']
-    for single_kw in keywords[:3]:
-        queries.append(f'site:linkedin.com/in/ {single_kw}')
+    queries = build_profile_queries(kw, keywords, region_q, status_filter)
 
     candidates = []
     seen = set()
 
     for query in queries:
-        items = serpapi_search_all(query, api_key, total=50)
+        items = serpapi_search(query, api_key, num=10)
         for item in items:
             url     = item.get("link", "")
             title   = item.get("title", "")
             snippet = item.get("snippet", "")
 
-            if "linkedin.com/in/" not in url and "linkedin.com/in/" not in url.replace("in.linkedin","linkedin"):
+            if "linkedin.com/in/" not in url and "linkedin.com/in/" not in url.replace("in.linkedin", "linkedin"):
                 continue
             url = url.replace("https://in.linkedin.com", "https://www.linkedin.com")
             url = url.split("?")[0].rstrip("/")
@@ -230,16 +221,13 @@ def search_profiles(keywords, region, api_key, max_results):
             signals = parse_profile_signals(snippet, title)
             region_match = any(p.lower() in full for p in region_parts) if region_parts else False
 
-            # Hard filter: if region specified, skip profiles with no region signal
-            if region_parts and not region_match:
-                continue
-
             score = keyword_score(full, keywords)
-            if region_match: score += 3
+            if region_match: score += 3        # boost, not hard filter
             score += signals["seniority_score"]
-            score += signals["portfolio_score"]
-            if signals["exp_years"] >= 5: score += 2
+            if signals["exp_years"] >= 3: score += 2
+            elif signals["exp_years"] >= 1: score += 1
             if signals["is_active"]: score += 1
+            if signals["open_to_work"]: score += 1
 
             post_search = f"https://www.linkedin.com/search/results/content/?keywords={urllib.parse.quote(author)}"
             candidates.append((score, {
@@ -260,23 +248,28 @@ def search_profiles(keywords, region, api_key, max_results):
                 "seniority_score": signals["seniority_score"],
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
-                "portfolio_signals": signals["portfolio_signals"],
             }))
 
     return candidates
 
 
-def search_posts(keywords, region, api_key, max_results):
+def search_posts(keywords, region, api_key, status_filter="all"):
     kw = " ".join(keywords)
     region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
+    region_q = " ".join(region_parts[:2]) if region_parts else ""
 
-    queries = [f'site:linkedin.com/posts/ {kw}', f'site:linkedin.com/feed/update/ {kw}']
+    queries = [f'site:linkedin.com/posts/ {kw}']
+    if region_q:
+        queries.insert(0, f'site:linkedin.com/posts/ {kw} {region_q}')
+    queries.append(f'site:linkedin.com/feed/update/ {kw}')
+    for kw_single in keywords[:2]:
+        queries.append(f'site:linkedin.com/posts/ {kw_single}')
 
     candidates = []
     seen = set()
 
     for query in queries:
-        items = serpapi_search_all(query, api_key, total=50)
+        items = serpapi_search(query, api_key, num=10)
         for item in items:
             url     = item.get("link", "")
             title   = item.get("title", "")
@@ -294,10 +287,6 @@ def search_posts(keywords, region, api_key, max_results):
             full = (title + " " + snippet).lower()
             signals = parse_profile_signals(snippet, title)
             region_match = any(p.lower() in full for p in region_parts) if region_parts else False
-
-            # Hard filter: if region specified, skip posts with no region signal
-            if region_parts and not region_match:
-                continue
 
             score = keyword_score(full, keywords)
             if region_match: score += 2
@@ -321,7 +310,6 @@ def search_posts(keywords, region, api_key, max_results):
                 "seniority_score": signals["seniority_score"],
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
-                "portfolio_signals": signals["portfolio_signals"],
             }))
 
     return candidates
