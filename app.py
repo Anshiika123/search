@@ -206,6 +206,7 @@ def search_profiles(keywords, region, api_key, max_results):
             score = keyword_score(full, keywords)
             if region_match: score += 3
             score += signals["seniority_score"]
+            score += signals["portfolio_score"]
             if signals["exp_years"] >= 5: score += 2
             if signals["is_active"]: score += 1
 
@@ -228,6 +229,7 @@ def search_profiles(keywords, region, api_key, max_results):
                 "seniority_score": signals["seniority_score"],
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
+                "portfolio_signals": signals["portfolio_signals"],
             }))
 
     return candidates
@@ -290,6 +292,7 @@ def search_posts(keywords, region, api_key, max_results):
                 "seniority_score": signals["seniority_score"],
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
+                "portfolio_signals": signals["portfolio_signals"],
             }))
 
     return candidates
