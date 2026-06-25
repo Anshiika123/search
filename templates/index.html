@@ -230,17 +230,15 @@
     const list = document.getElementById('postsList');
     list.innerHTML = '';
 
-    let filtered = data.posts;
-    if (currentStatusFilter === 'open_to_work') {
-      filtered = data.posts.filter(p => p.open_to_work);
-      if (!filtered.length) filtered = data.posts;
-    } else if (currentStatusFilter === 'working') {
-      filtered = data.posts.filter(p => p.current_company && !p.open_to_work);
-      if (!filtered.length) filtered = data.posts;
-    } else if (currentStatusFilter === 'experienced') {
-      filtered = data.posts.filter(p => p.exp_years >= 3 || p.seniority_score >= 3);
-      if (!filtered.length) filtered = data.posts;
-    }
+    // Filtering done in backend — use posts directly
+    const filtered = data.posts;
+    const filterLabels = {'open_to_work':'🟢 Open to Work','working':'💼 Currently Working','experienced':'⭐ Experienced (3+ yrs)'};
+    const filterLabel = filterLabels[data.status_filter] || '';
+    const poolNote = (data.filtered_total > data.count)
+      ? ` (${data.filtered_total} matched from a pool of ${data.total_pool})` : '';
+    document.getElementById('resultsTitle').textContent = filterLabel
+      ? `${filtered.length} ${filterLabel} — "${data.topic}"${poolNote}`
+      : `Top ${filtered.length} Results — "${data.topic}"`;
 
     filtered.forEach((post, i) => {
       const initials = getInitials(post.author_name);
