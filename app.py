@@ -360,9 +360,8 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
         filtered = [p for p in all_posts if p.get("current_company") and not p.get("open_to_work")]
     elif status_filter == "experienced":
         filtered = [p for p in all_posts if
-                    p.get("exp_years", 0) >= 2 or
-                    p.get("seniority_score", 0) >= 2 or
-                    p.get("portfolio_score", 0) >= 1]
+                    p.get("exp_years", 0) >= 1 or
+                    p.get("seniority_score", 0) >= 1]
     else:
         filtered = all_posts
 
