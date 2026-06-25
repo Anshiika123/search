@@ -190,7 +190,9 @@
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          topic, max_results: maxResults, region,
+          topic,
+          max_results: currentStatusFilter === 'all' ? maxResults : 20,
+          region,
           search_mode: currentMode,
           status_filter: currentStatusFilter,
           api_key: savedApiKey || localStorage.getItem('serpapi_key') || '',
