@@ -14,13 +14,14 @@
     <div class="logo">in</div>
     <div style="flex:1">
       <h1>LinkedIn Topic Search</h1>
-      <p>Search any topic → Get top LinkedIn posts filtered by skill, region & verification</p>
+      <p>Search any topic → Get top LinkedIn profiles &amp; posts</p>
     </div>
     <a class="btn-linkedin" href="https://www.linkedin.com/feed/" target="_blank">
       <span class="btn-linkedin-logo">in</span> Open LinkedIn
     </a>
   </div>
 
+  <!-- API key setup -->
   <div id="credsSetup" class="creds-setup" style="{% if has_creds %}display:none{% endif %}">
     <div class="creds-header">⚙️ One-time Setup — SerpAPI (Free, 100 searches/month)</div>
     <div class="creds-steps">
@@ -29,47 +30,31 @@
     </div>
     <div class="creds-row">
       <input type="text" id="inputApiKey" placeholder="SerpAPI Key" />
-      <button class="btn-save" onclick="saveCreds()">Save & Use</button>
+      <button class="btn-save" onclick="saveCreds()">Save &amp; Use</button>
     </div>
   </div>
   <div id="credsSaved" class="key-saved" style="{% if not has_creds %}display:none{% endif %}">✅ SerpAPI connected — real Google results, no bot blocking!</div>
 
-  <!-- Search Card -->
-  <div class="card">
+  <!-- Two-column layout -->
+  <div class="layout">
 
-    <!-- Row 1: Topic + Count + Search -->
-    <div class="form-group">
-      <label>🔍 Skills / Topic <span class="label-hint">— separate keywords with spaces (e.g. "AI ML Python")</span></label>
-      <div class="search-row">
-        <input type="text" id="topic" placeholder="e.g. AI ML Python, data science, digital marketing..." />
-        <select id="maxResults" class="select-count">
-          <option value="5" selected>Top 5</option>
-          <option value="10">Top 10</option>
-        </select>
-        <button class="btn-search" id="searchBtn" onclick="doSearch()">Search</button>
+    <!-- ── LEFT SIDEBAR ── -->
+    <aside class="sidebar">
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">🎯 Search Mode</div>
+        <div class="sidebar-tabs">
+          <button class="mode-tab active" data-mode="both"     onclick="setMode(this)">👤 Profiles + Posts</button>
+          <button class="mode-tab"        data-mode="profiles" onclick="setMode(this)">👤 Profiles Only</button>
+          <button class="mode-tab"        data-mode="posts"    onclick="setMode(this)">📄 Posts Only</button>
+        </div>
       </div>
-    </div>
 
-    <!-- Row 2: Search Mode -->
-    <div class="form-group" style="margin-top:14px;margin-bottom:0">
-      <label class="filter-label">🎯 Search Mode</label>
-      <div class="mode-tabs">
-        <button class="mode-tab active" data-mode="both"    onclick="setMode(this)">👤 Profiles + Posts</button>
-        <button class="mode-tab"        data-mode="profiles" onclick="setMode(this)">👤 Profiles Only <span class="mode-hint">— uses location from profile</span></button>
-        <button class="mode-tab"        data-mode="posts"    onclick="setMode(this)">📄 Posts Only</button>
-      </div>
-      <p id="modeNote" style="font-size:12px;color:#0a66c2;margin-top:6px;display:none">
-        💡 Profile search finds people by their listed location (city/country on their profile) — most accurate for region filtering.
-      </p>
-    </div>
-
-    <!-- Row 3: Region + Verified toggle -->
-    <div class="filter-row">
-      <div class="filter-group">
-        <label class="filter-label">📍 Region <span class="label-hint">(optional — type or pick)</span></label>
-        <input type="text" id="regionCustom" class="input-region-single"
+      <div class="sidebar-section">
+        <div class="sidebar-label">📍 Region <span class="label-hint">(optional)</span></div>
+        <input type="text" id="regionCustom" class="sidebar-input"
                list="regionList"
-               placeholder="e.g. Bangalore India, California USA, Dubai UAE..." />
+               placeholder="e.g. Bangalore, California..." />
         <datalist id="regionList">
           <option value="Bangalore India">
           <option value="Delhi India">
@@ -94,36 +79,55 @@
         </datalist>
       </div>
 
-      <div class="filter-group">
-        <label class="filter-label">👤 Profile Status Filter</label>
-        <div class="status-filter-group">
-          <button class="status-btn active" data-status="all" onclick="setStatusFilter(this)">🔍 All</button>
-          <button class="status-btn" data-status="open_to_work" onclick="setStatusFilter(this)">🟢 Open to Work</button>
-          <button class="status-btn" data-status="working" onclick="setStatusFilter(this)">💼 Currently Working</button>
-          <button class="status-btn" data-status="experienced" onclick="setStatusFilter(this)">⭐ Experienced (3+ yrs)</button>
+      <div class="sidebar-section">
+        <div class="sidebar-label">👤 Profile Status</div>
+        <div class="sidebar-tabs">
+          <button class="status-btn active" data-status="all"          onclick="setStatusFilter(this)">🔍 All</button>
+          <button class="status-btn"        data-status="open_to_work" onclick="setStatusFilter(this)">🟢 Open to Work</button>
+          <button class="status-btn"        data-status="working"      onclick="setStatusFilter(this)">💼 Currently Working</button>
+          <button class="status-btn"        data-status="experienced"  onclick="setStatusFilter(this)">⭐ Experienced (3+ yrs)</button>
         </div>
-        <div class="verified-note" style="margin-top:8px">
-          ⚠️ Based on Google snippet signals — approximate, not real-time LinkedIn data.
+        <div class="sidebar-note">⚠️ Approximate — based on Google snippet signals.</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">📊 Results</div>
+        <select id="maxResults" class="sidebar-select">
+          <option value="5" selected>Top 5</option>
+          <option value="10">Top 10</option>
+        </select>
+      </div>
+
+    </aside>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main">
+
+      <!-- Search bar -->
+      <div class="search-bar-wrap">
+        <input type="text" id="topic"
+               placeholder="e.g. AI ML Python, data science, digital marketing..."
+               class="search-input" />
+        <button class="btn-search" id="searchBtn" onclick="doSearch()">Search</button>
+      </div>
+
+      <!-- Status -->
+      <div class="status" id="status" style="display:none"></div>
+
+      <!-- Results -->
+      <div id="results" style="display:none">
+        <div class="results-header">
+          <div>
+            <h2 id="resultsTitle"></h2>
+            <div id="resultsSubtitle" style="font-size:13px;color:#666;margin-top:2px"></div>
+          </div>
+          <button class="btn-export" onclick="exportExcel()">📊 Export Excel</button>
         </div>
+        <div id="postsList"></div>
       </div>
-    </div>
 
-  </div>
-
-  <!-- Status -->
-  <div class="status" id="status" style="display:none"></div>
-
-  <!-- Results -->
-  <div id="results" style="display:none">
-    <div class="results-header">
-      <div>
-        <h2 id="resultsTitle"></h2>
-        <div id="resultsSubtitle" style="font-size:13px;color:#666;margin-top:2px"></div>
-      </div>
-      <button class="btn-export" onclick="exportExcel()">📊 Export Excel</button>
-    </div>
-    <div id="postsList"></div>
-  </div>
+    </main>
+  </div><!-- /layout -->
 
 </div>
 
@@ -159,19 +163,13 @@
     document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentMode = btn.dataset.mode;
-    const note = document.getElementById('modeNote');
-    note.style.display = (currentMode !== 'posts') ? 'block' : 'none';
-  }
-
-  function getRegion() {
-    return document.getElementById('regionCustom').value.trim();
   }
 
   async function doSearch() {
     const topic = document.getElementById('topic').value.trim();
     if (!topic) { alert('Please enter a topic!'); return; }
 
-    const region = getRegion();
+    const region = document.getElementById('regionCustom').value.trim();
     const maxResults = parseInt(document.getElementById('maxResults').value);
 
     const btn = document.getElementById('searchBtn');
@@ -180,7 +178,7 @@
 
     let statusMsg = `Searching LinkedIn about "${topic}"`;
     if (region) statusMsg += ` in ${region}`;
-    if (currentStatusFilter !== 'all') statusMsg += ` · filter: ${currentStatusFilter}`;
+    if (currentStatusFilter !== 'all') statusMsg += ` · ${currentStatusFilter}`;
     statusMsg += '...';
     showStatus(statusMsg, 'loading');
     document.getElementById('results').style.display = 'none';
@@ -190,9 +188,7 @@
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          topic,
-          max_results: currentStatusFilter === 'all' ? maxResults : 20,
-          region,
+          topic, max_results: maxResults, region,
           search_mode: currentMode,
           status_filter: currentStatusFilter,
           api_key: savedApiKey || localStorage.getItem('serpapi_key') || '',
@@ -203,11 +199,11 @@
       if (data.error) {
         showStatus('❌ ' + data.error, 'error');
       } else {
-        showStatus(`Found ${data.count} post${data.count !== 1 ? 's' : ''} for "${data.topic}"`, 'success');
+        showStatus(`Found ${data.count} result${data.count !== 1 ? 's' : ''} for "${data.topic}"`, 'success');
         renderResults(data);
       }
     } catch(e) {
-      showStatus('Error: ' + e.message, 'error');
+      showStatus('❌ Error: ' + e.message, 'error');
     }
 
     btn.disabled = false;
@@ -226,74 +222,54 @@
   }
 
   function renderResults(data) {
-    let title = `Top ${data.count} Posts — "${data.topic}"`;
-    document.getElementById('resultsTitle').textContent = title;
-
+    document.getElementById('resultsTitle').textContent = `Top ${data.count} Results — "${data.topic}"`;
     let subtitle = '';
-    if (data.region) subtitle += `📍 Region: ${data.region}`;
-    if (data.verified_only) subtitle += (subtitle ? '  •  ' : '') + '🔰 Verified filter: ON (approximate)';
+    if (data.region) subtitle += `📍 ${data.region}`;
     document.getElementById('resultsSubtitle').textContent = subtitle;
 
     const list = document.getElementById('postsList');
     list.innerHTML = '';
 
-    // Apply status filter client-side — show ALL matching, not just top N
     let filtered = data.posts;
-    let filterLabel = '';
     if (currentStatusFilter === 'open_to_work') {
       filtered = data.posts.filter(p => p.open_to_work);
-      filterLabel = '🟢 Open to Work';
+      if (!filtered.length) filtered = data.posts;
     } else if (currentStatusFilter === 'working') {
       filtered = data.posts.filter(p => p.current_company && !p.open_to_work);
-      filterLabel = '💼 Currently Working';
+      if (!filtered.length) filtered = data.posts;
     } else if (currentStatusFilter === 'experienced') {
       filtered = data.posts.filter(p => p.exp_years >= 3 || p.seniority_score >= 3);
-      filterLabel = '⭐ Experienced (3+ yrs)';
+      if (!filtered.length) filtered = data.posts;
     }
-
-    if (currentStatusFilter !== 'all' && filtered.length === 0) {
-      list.innerHTML = `<div class="status error" style="display:block">
-        No profiles matched the <b>${filterLabel}</b> filter in these results.
-        Try switching to <b>All</b> or search with different keywords.
-      </div>`;
-      document.getElementById('results').style.display = 'block';
-      return;
-    }
-
-    // Update count in title
-    document.getElementById('resultsTitle').textContent =
-      currentStatusFilter === 'all'
-        ? `Top ${filtered.length} Results — "${data.topic}"`
-        : `${filtered.length} ${filterLabel} profiles — "${data.topic}"`;
 
     filtered.forEach((post, i) => {
-      const initials  = getInitials(post.author_name);
-      const bg        = avatarColor(post.author_name);
-      const likes     = post.likes    ? `<span class="stat-pill">👍 ${post.likes}</span>`    : '';
-      const comments  = post.comments ? `<span class="stat-pill">💬 ${post.comments}</span>` : '';
-      const kwBadge   = post.total_keywords > 0
-        ? `<span class="stat-pill kw-match">${post.matched_keywords}/${post.total_keywords} keywords</span>` : '';
-      const verBadge  = post.verified_signal
-        ? `<span class="stat-pill ver-badge">🔰 Verified Signal</span>` : '';
-      const regionBadge = (data.region && post.region_match)
-        ? `<span class="stat-pill region-badge">📍 ${data.region}</span>` : '';
-      const typeBadge = post.result_type === 'profile'
+      const initials = getInitials(post.author_name);
+      const bg       = avatarColor(post.author_name);
+
+      const typeBadge     = post.result_type === 'profile'
         ? `<span class="stat-pill type-profile">👤 Profile</span>`
         : `<span class="stat-pill type-post">📄 Post</span>`;
+      const kwBadge       = post.total_keywords > 0
+        ? `<span class="stat-pill kw-match">${post.matched_keywords}/${post.total_keywords} kw</span>` : '';
+      const regionBadge   = (data.region && post.region_match)
+        ? `<span class="stat-pill region-badge">📍 ${data.region}</span>` : '';
+      const openToWorkBadge = post.open_to_work
+        ? `<span class="stat-pill otw-badge">🟢 Open to Work</span>` : '';
+      const companyBadge  = post.current_company
+        ? `<span class="stat-pill company-badge">🏢 ${post.current_company}</span>` : '';
+      const expBadge      = post.exp_years > 0
+        ? `<span class="stat-pill exp-badge">📅 ${post.exp_years}+ yrs</span>` : '';
+      const senBadge      = post.seniority_score > 0
+        ? `<span class="stat-pill seniority-badge">${'⭐'.repeat(Math.min(post.seniority_score,3))} L${post.seniority_score}</span>` : '';
+      const activeBadge   = post.is_active
+        ? `<span class="stat-pill active-badge">⚡ Active</span>` : '';
+      const jobLine       = post.job_title
+        ? `<div class="id-jobtitle">💼 ${post.job_title}</div>` : '';
 
-      const postBtnLabel = post.post_url_label || (post.result_type === 'profile' ? '🔍 Find Posts' : '📄 Open Post');
-
-      const openToWorkBadge  = post.open_to_work    ? `<span class="stat-pill otw-badge">🟢 Open to Work</span>` : '';
-      const companyBadge     = post.current_company ? `<span class="stat-pill company-badge">🏢 ${post.current_company}</span>` : '';
-      const activeBadge      = post.is_active       ? `<span class="stat-pill active-badge">⚡ Recently Active</span>` : '';
-      const expBadge         = post.exp_years > 0   ? `<span class="stat-pill exp-badge">📅 ${post.exp_years}+ yrs</span>` : '';
-      const seniorityBadge   = post.seniority_score > 0
-        ? `<span class="stat-pill seniority-badge">${'⭐'.repeat(Math.min(post.seniority_score,5))} Seniority L${post.seniority_score}</span>` : '';
-      const jobTitleLine     = post.job_title ? `<div class="id-jobtitle">💼 ${post.job_title}</div>` : '';
-
+      const postBtnLabel = post.post_url_label || '📄 Open Post';
       const claudePrompt = post.result_type === 'profile'
-        ? `Tell me about this LinkedIn profile and their skills in ${data.topic}:\n\nName: ${post.author_name}\nTitle: ${post.job_title||'N/A'}\nCompany: ${post.current_company||'N/A'}\nOpen to Work: ${post.open_to_work?'Yes':'Unknown'}\nProfile: ${post.profile_url}\nHeadline: ${post.context}`
-        : `Analyze this LinkedIn post about ${data.topic}:\n\nAuthor: ${post.author_name}\nCompany: ${post.current_company||'N/A'}\nPost: ${post.context}\nURL: ${post.post_url}`;
+        ? `Tell me about this LinkedIn profile: ${post.author_name}\nTitle: ${post.job_title||''}\nCompany: ${post.current_company||''}\nProfile: ${post.profile_url}`
+        : `Analyze this LinkedIn post by ${post.author_name}:\n${post.context}\nURL: ${post.post_url}`;
 
       list.innerHTML += `
         <div class="id-card ${post.result_type === 'profile' ? 'id-card-profile' : ''}">
@@ -307,13 +283,13 @@
                   ? `<a href="${post.profile_url}" target="_blank">${post.author_name}</a>`
                   : post.author_name}
               </div>
-              ${jobTitleLine}
-              <div class="id-stats">${typeBadge}${openToWorkBadge}${companyBadge}${expBadge}${seniorityBadge}${activeBadge}${kwBadge}${regionBadge}${verBadge}${likes}${comments}</div>
+              ${jobLine}
+              <div class="id-stats">${typeBadge}${openToWorkBadge}${companyBadge}${expBadge}${senBadge}${activeBadge}${kwBadge}${regionBadge}</div>
               <div class="id-context">${post.context}</div>
               <div class="id-actions">
                 ${post.profile_url ? `<a class="id-btn id-btn-outline" href="${post.profile_url}" target="_blank">👤 View Profile</a>` : ''}
                 ${post.post_url    ? `<a class="id-btn id-btn-fill"    href="${post.post_url}"    target="_blank">${postBtnLabel}</a>` : ''}
-                <a class="id-btn id-btn-claude" href="https://claude.ai/new?q=${encodeURIComponent(claudePrompt)}" target="_blank">✨ Open Claude</a>
+                <a class="id-btn id-btn-claude" href="https://claude.ai/new?q=${encodeURIComponent(claudePrompt)}" target="_blank">✨ Ask Claude</a>
               </div>
             </div>
           </div>
