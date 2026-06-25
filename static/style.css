@@ -254,6 +254,19 @@ body {
   font-size: 13px; color: #555; margin-bottom: 8px; font-style: italic;
 }
 
+/* ── Status filter buttons ───────────────────────────────────── */
+.status-filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.status-btn {
+  padding: 6px 14px; border: 1.5px solid #dde1e7; border-radius: 20px;
+  background: white; font-size: 13px; font-weight: 600; color: #555;
+  cursor: pointer; transition: all 0.15s;
+}
+.status-btn:hover { border-color: #0A66C2; color: #0A66C2; }
+.status-btn.active { background: #0A66C2; color: white; border-color: #0A66C2; }
+.status-btn[data-status="open_to_work"].active  { background: #065f46; border-color: #065f46; }
+.status-btn[data-status="working"].active       { background: #1e40af; border-color: #1e40af; }
+.status-btn[data-status="experienced"].active   { background: #92400e; border-color: #92400e; }
+
 /* ── Post context ────────────────────────────────────────────── */
 .id-context {
   font-size: 14px; color: #444; line-height: 1.65;
