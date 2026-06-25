@@ -172,16 +172,15 @@
     if (!topic) { alert('Please enter a topic!'); return; }
 
     const region = getRegion();
-    const verifiedOnly = document.getElementById('verifiedOnly').checked;
     const maxResults = parseInt(document.getElementById('maxResults').value);
 
     const btn = document.getElementById('searchBtn');
     btn.disabled = true;
     btn.textContent = 'Searching...';
 
-    let statusMsg = `Searching LinkedIn posts about "${topic}"`;
+    let statusMsg = `Searching LinkedIn about "${topic}"`;
     if (region) statusMsg += ` in ${region}`;
-    if (verifiedOnly) statusMsg += ` (verified profiles preferred)`;
+    if (currentStatusFilter !== 'all') statusMsg += ` · filter: ${currentStatusFilter}`;
     statusMsg += '...';
     showStatus(statusMsg, 'loading');
     document.getElementById('results').style.display = 'none';
@@ -192,7 +191,7 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           topic, max_results: maxResults, region,
-          verified_only: verifiedOnly, search_mode: currentMode,
+          search_mode: currentMode,
           status_filter: currentStatusFilter,
           api_key: savedApiKey || localStorage.getItem('serpapi_key') || '',
         })
