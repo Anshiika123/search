@@ -216,13 +216,18 @@ def search_profiles(keywords, region, api_key, max_results):
     if region_q:
         queries += [f'site:linkedin.com/in/ "{kw}" "{region_q}"']
         queries += [f'site:linkedin.com/in/ {kw} {region_q}']
+        # extra variations per keyword for bigger pool
+        for single_kw in keywords[:3]:
+            queries.append(f'site:linkedin.com/in/ {single_kw} {region_q}')
     queries += [f'site:linkedin.com/in/ {kw}']
+    for single_kw in keywords[:3]:
+        queries.append(f'site:linkedin.com/in/ {single_kw}')
 
     candidates = []
     seen = set()
 
     for query in queries:
-        if len(candidates) >= max_results * 2:
+        if len(candidates) >= max_results:
             break
         items = serpapi_search(query, api_key, num=10)
         for item in items:
@@ -287,7 +292,7 @@ def search_posts(keywords, region, api_key, max_results):
     seen = set()
 
     for query in queries:
-        if len(candidates) >= max_results * 2:
+        if len(candidates) >= max_results:
             break
         items = serpapi_search(query, api_key, num=10)
         for item in items:
@@ -340,7 +345,7 @@ def search_posts(keywords, region, api_key, max_results):
 
 
 def search_linkedin(topic, max_results=5, region="", verified_only=False,
-                    search_mode="both", api_key=""):
+                    search_mode="both", api_key="", status_filter="all"):
     api_key = api_key or SERPAPI_KEY
     if not api_key:
         return {"error": "SerpAPI key missing. Please enter it below."}
@@ -349,11 +354,14 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
     if not keywords:
         return {"error": "Please enter a topic."}
 
+    # Always fetch a large pool so filters have enough to work with
+    fetch_size = max(50, max_results * 5)
+
     candidates = []
     if search_mode in ("profiles", "both"):
-        candidates += search_profiles(keywords, region, api_key, max_results)
+        candidates += search_profiles(keywords, region, api_key, fetch_size)
     if search_mode in ("posts", "both"):
-        candidates += search_posts(keywords, region, api_key, max_results)
+        candidates += search_posts(keywords, region, api_key, fetch_size)
 
     if not candidates:
         msg = f"No results found for '{topic}'"
@@ -364,19 +372,32 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
         return {"error": msg}
 
     candidates.sort(key=lambda x: x[0], reverse=True)
+
+    # Deduplicate full pool
     seen = set()
-    posts = []
+    all_posts = []
     for _, p in candidates:
         key = p.get("profile_url") or p.get("post_url")
         if key not in seen:
             seen.add(key)
-            posts.append(p)
-        if len(posts) >= max_results:
-            break
+            all_posts.append(p)
+
+    # Apply status filter on the full pool, then limit to max_results
+    if status_filter == "open_to_work":
+        filtered = [p for p in all_posts if p.get("open_to_work")]
+    elif status_filter == "working":
+        filtered = [p for p in all_posts if p.get("current_company") and not p.get("open_to_work")]
+    elif status_filter == "experienced":
+        filtered = [p for p in all_posts if p.get("exp_years", 0) >= 3 or p.get("seniority_score", 0) >= 3]
+    else:
+        filtered = all_posts
+
+    posts = filtered[:max_results]
 
     return {"posts": posts, "topic": topic, "count": len(posts),
+            "total_pool": len(all_posts), "filtered_total": len(filtered),
             "keywords": keywords, "region": region, "verified_only": verified_only,
-            "search_mode": search_mode}
+            "search_mode": search_mode, "status_filter": status_filter}
 
 
 @app.route("/debug")
