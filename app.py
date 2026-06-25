@@ -26,16 +26,12 @@ def keyword_score(text: str, keywords: list) -> int:
     return sum(1 for kw in keywords if kw in t)
 
 
-def serpapi_search(query: str, api_key: str, num: int = 10, start: int = 0) -> list:
-    """Call SerpAPI Google Search. Returns list of organic results."""
+def serpapi_search(query: str, api_key: str, num: int = 10) -> list:
+    """Call SerpAPI Google Search — 1 API credit per call."""
     try:
         resp = requests.get("https://serpapi.com/search", params={
-            "q": query,
-            "api_key": api_key,
-            "engine": "google",
-            "num": num,
-            "start": start,
-            "hl": "en",
+            "q": query, "api_key": api_key,
+            "engine": "google", "num": num, "hl": "en",
         }, timeout=15)
         data = resp.json()
         if "error" in data:
@@ -47,17 +43,40 @@ def serpapi_search(query: str, api_key: str, num: int = 10, start: int = 0) -> l
         return []
 
 
-def serpapi_search_all(query: str, api_key: str, total: int = 30) -> list:
-    """Fetch multiple pages from SerpAPI to get a bigger pool of results."""
-    all_results = []
-    for start in range(0, total, 10):
-        results = serpapi_search(query, api_key, num=10, start=start)
-        if not results:
-            break
-        all_results.extend(results)
-        if len(all_results) >= total:
-            break
-    return all_results
+def build_profile_queries(kw: str, keywords: list, region_q: str,
+                          status_filter: str) -> list:
+    """Return query list ordered best-first. Each query = 1 API credit."""
+    queries = []
+
+    # Status-specific prefix terms to find more matching profiles
+    status_terms = {
+        "open_to_work":  ["open to work", "seeking opportunities", "available"],
+        "working":       ["software engineer", "developer", "analyst", "manager"],
+        "experienced":   ["senior", "lead", "5 years", "7 years", "10 years",
+                          "experienced", "principal", "architect"],
+    }.get(status_filter, [])
+
+    if region_q:
+        queries.append(f'site:linkedin.com/in/ {kw} {region_q}')
+        if status_terms:
+            queries.append(f'site:linkedin.com/in/ {kw} {status_terms[0]} {region_q}')
+        for kw_single in keywords[:2]:
+            queries.append(f'site:linkedin.com/in/ {kw_single} {region_q}')
+
+    queries.append(f'site:linkedin.com/in/ {kw}')
+    if status_terms:
+        for term in status_terms[:3]:
+            queries.append(f'site:linkedin.com/in/ {kw} {term}')
+    for kw_single in keywords[:3]:
+        queries.append(f'site:linkedin.com/in/ {kw_single}')
+
+    # Deduplicate while preserving order
+    seen_q, unique = set(), []
+    for q in queries:
+        if q not in seen_q:
+            seen_q.add(q)
+            unique.append(q)
+    return unique
 
 
 def parse_profile_signals(snippet: str, title: str) -> dict:
