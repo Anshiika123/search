@@ -268,7 +268,7 @@
       ].join('');
 
       const jobLine  = p.job_title ? `<div class="card-jobtitle">${p.job_title}</div>` : '';
-      const btnLabel = p.post_url_label || '📄 Open Post';
+      const btnLabel = isProfile ? '🔍 Search Their Posts' : '📄 Open Post';
       const claudeQ  = encodeURIComponent(isProfile
         ? `LinkedIn profile: ${p.author_name}\nTitle: ${p.job_title||''}\nCompany: ${p.current_company||''}\nProfile: ${p.profile_url}`
         : `LinkedIn post by ${p.author_name}:\n${p.context}\nURL: ${p.post_url}`);
