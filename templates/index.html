@@ -192,6 +192,7 @@
             <div class="card-name">
               ${p.profile_url ? `<a href="${p.profile_url}" target="_blank">${p.author_name}</a>` : p.author_name}
             </div>
+            ${(()=>{ const h=p.profile_url&&p.profile_url.split('/in/')[1]; return h?`<div class="card-handle">🔗 linkedin.com/in/${h}</div>`:''; })()}
             ${jobLine}
             <div class="card-badges">${badges}</div>
             <div class="card-context">${p.context}</div>
