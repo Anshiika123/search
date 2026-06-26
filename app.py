@@ -115,6 +115,23 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
     }
     portfolio_signals = [label for label, kws in portfolio_checks.items() if any(kw in text for kw in kws)]
 
+    # Extract current location from snippet
+    location = ""
+    # Pattern 1: "City, State, Country" or "City, State" separated by · or commas
+    loc_patterns = [
+        r'·\s*([A-Z][A-Za-z\s]+,\s*[A-Z][A-Za-z\s]+(?:,\s*[A-Z][A-Za-z\s]+)?)\s*·',
+        r'Location[:\s]+([A-Z][A-Za-z\s]+(?:,\s*[A-Z][A-Za-z\s]+){0,2})',
+        r'\b([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+)?,\s*(?:Karnataka|Maharashtra|Tamil Nadu|Telangana|Delhi|Gujarat|Rajasthan|UP|West Bengal|Punjab|Haryana|Kerala|Andhra Pradesh|India))\b',
+        r'\b([A-Z][A-Za-z\s]+,\s*(?:USA|UK|UAE|Canada|Australia|Singapore|Germany|Netherlands|France))\b',
+    ]
+    for pat in loc_patterns:
+        lm = re.search(pat, raw)
+        if lm:
+            candidate = lm.group(1).strip().strip('·').strip()
+            if 3 < len(candidate) < 60:
+                location = candidate
+                break
+
     return {
         "current_company": current_company,
         "job_title": job_title,
@@ -124,6 +141,7 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
         "is_active": is_active,
         "portfolio_signals": portfolio_signals,
         "portfolio_score": len(portfolio_signals),
+        "location": location,
     }
 
 
@@ -361,6 +379,7 @@ def search_profiles(keywords, region, api_key, fetch_size, status_filter="all"):
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
                 "portfolio_signals": signals["portfolio_signals"],
+                "location": signals["location"],
             }))
 
     return candidates
@@ -430,6 +449,7 @@ def search_posts(keywords, region, api_key):
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
                 "portfolio_signals": signals["portfolio_signals"],
+                "location": signals["location"],
             }))
 
     return candidates
@@ -724,6 +744,7 @@ def search_stream():
                 "exp_years":         signals["exp_years"],
                 "is_active":         signals["is_active"],
                 "portfolio_signals": signals["portfolio_signals"],
+                "location":          signals["location"],
                 "_score":            score,
             }
 

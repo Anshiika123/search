@@ -194,6 +194,7 @@
             </div>
             ${(()=>{ const h=p.profile_url&&p.profile_url.split('/in/')[1]; return h?`<div class="card-handle">🔗 linkedin.com/in/${h}</div>`:''; })()}
             ${jobLine}
+            ${p.location ? `<div class="card-location">📍 ${p.location}</div>` : ''}
             <div class="card-badges">${badges}</div>
             <div class="card-context">${p.context}</div>
             <div class="card-actions">
