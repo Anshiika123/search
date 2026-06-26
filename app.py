@@ -8,6 +8,11 @@ import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
+try:
+    import wordninja
+    _HAS_WORDNINJA = True
+except ImportError:
+    _HAS_WORDNINJA = False
 
 load_dotenv()
 
@@ -130,7 +135,15 @@ def clean_author_name(raw: str) -> str:
     if ' ' not in raw and '-' in raw:
         raw = raw.replace('-', ' ')
     if ' ' not in raw:
-        raw = re.sub(r'([a-z])([A-Z])', r'\1 \2', raw)
+        # Try camelCase split first
+        split = re.sub(r'([a-z])([A-Z])', r'\1 \2', raw)
+        if ' ' in split:
+            raw = split
+        elif _HAS_WORDNINJA:
+            # Slug like "aaronchall" → ["aaron", "chall"]
+            parts = wordninja.split(raw.lower())
+            if 2 <= len(parts) <= 4:
+                raw = ' '.join(parts)
     words = raw.split()
     stop = {'a','an','the','of','at','in','on','and','or','for','to'}
     name = ' '.join(w.capitalize() if w.lower() not in stop or i == 0 else w
