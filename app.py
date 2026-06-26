@@ -215,24 +215,19 @@ def extract_author(url: str, title: str) -> tuple:
 
     slug_m = re.search(r'linkedin\.com/in/([a-zA-Z0-9][a-zA-Z0-9\-]+)', url)
     if slug_m:
-        full_slug = slug_m.group(1)
-        # Use full slug (with ID) for the URL — LinkedIn accepts it and redirects correctly
-        if full_slug:
-            profile_url = f"https://www.linkedin.com/in/{full_slug}"
-        # Strip trailing numeric/alphanumeric ID only for the display name
-        name_slug = re.sub(r'-[a-z0-9]*\d{4,}[a-z0-9]*$', '', full_slug, flags=re.I).strip('-')
-        if not raw_name:
-            raw_name = name_slug
+        clean_slug = re.sub(r'-[a-z0-9]*\d{4,}[a-z0-9]*$', '', slug_m.group(1), flags=re.I).strip('-')
+        if clean_slug:
+            profile_url = f"https://www.linkedin.com/in/{clean_slug}"
+            if not raw_name:
+                raw_name = clean_slug
 
     slug_m2 = re.search(r'linkedin\.com/posts/([a-zA-Z0-9][a-zA-Z0-9\-]+)', url)
     if slug_m2:
-        full_slug = slug_m2.group(1)
-        # The /posts/ slug IS the author's profile slug — use it for profile URL
-        if full_slug and not profile_url:
-            profile_url = f"https://www.linkedin.com/in/{full_slug}"
+        clean_slug = re.sub(r'-[a-z0-9]*\d{4,}[a-z0-9]*$', '', slug_m2.group(1), flags=re.I).strip('-')
+        if clean_slug and not profile_url:
+            profile_url = f"https://www.linkedin.com/in/{clean_slug}"
         if not raw_name:
-            name_slug = re.sub(r'-[a-z0-9]*\d{4,}[a-z0-9]*$', '', full_slug, flags=re.I).strip('-')
-            raw_name = name_slug
+            raw_name = clean_slug
 
     author_name = clean_author_name(raw_name)
     # Reject names that are clearly job titles / tech keywords, not real people
