@@ -494,14 +494,13 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
         seen.add(key)
         all_posts.append(p)
 
-    # Region filter
+    # Region filter — strict: only show in-region results when a region is set
     region_filter_applied = False
     if region_parts:
-        in_region  = [p for p in all_posts if p.get("region_match")]
-        out_region = [p for p in all_posts if not p.get("region_match")]
+        in_region = [p for p in all_posts if p.get("region_match")]
         if in_region:
             region_filter_applied = True
-            all_posts = in_region if len(in_region) >= max_results else in_region + out_region
+            all_posts = in_region  # never pad with non-region results
 
     # Status filter
     if status_filter == "open_to_work":
@@ -772,12 +771,23 @@ def search_stream():
                     yield "data: " + json.dumps({"type": "result", "profile": p}) + "\n\n"
 
         candidates.sort(key=lambda x: x.get("_score", 0), reverse=True)
-        final = candidates[:max_results]
+
+        # Strict region filter — only show in-region results when region is set
+        region_filter_applied = False
+        pool = candidates
+        if region_parts:
+            in_region = [p for p in candidates if p.get("region_match")]
+            if in_region:
+                region_filter_applied = True
+                pool = in_region
+
+        final = pool[:max_results]
         for p in final:
             p.pop("_score", None)
         yield "data: " + json.dumps({
-            "type": "done", "ranked": final, "total_pool": len(candidates),
-            "topic": topic, "region": region, "keywords": keywords, "status_filter": status_filter,
+            "type": "done", "ranked": final, "total_pool": len(pool),
+            "topic": topic, "region": region, "keywords": keywords,
+            "status_filter": status_filter, "region_filter_applied": region_filter_applied,
         }) + "\n\n"
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
