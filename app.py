@@ -292,19 +292,30 @@ def build_profile_queries(kw: str, keywords: list, region_q: str, status_filter:
         "experienced":   ["senior", "lead", "5 years", "10 years", "architect"],
     }.get(status_filter, [])
 
+    # Open to Work needs dedicated queries — the phrase must appear in the profile text
+    OTW_TERMS = ['"open to work"', '"#opentowork"', '"looking for opportunities"',
+                 '"seeking new role"', '"available for hire"']
+
     queries = []
     if region_q:
         for region_variant in _region_variants(region_q):
             queries.append(f'site:linkedin.com/in/ {kw} {region_variant}')
-        if status_terms:
+        if status_filter == "open_to_work":
+            for term in OTW_TERMS[:3]:
+                queries.append(f'site:linkedin.com/in/ {kw} {term} {_region_variants(region_q)[0]}')
+        elif status_terms:
             queries.append(f'site:linkedin.com/in/ {kw} {status_terms[0]} {_region_variants(region_q)[0]}')
         for kw_single in keywords[:2]:
             queries.append(f'site:linkedin.com/in/ {kw_single} {_region_variants(region_q)[0]}')
 
-    queries.append(f'site:linkedin.com/in/ {kw}')
-    if status_terms:
-        for term in status_terms[:2]:
+    if status_filter == "open_to_work":
+        for term in OTW_TERMS[:4]:
             queries.append(f'site:linkedin.com/in/ {kw} {term}')
+    else:
+        queries.append(f'site:linkedin.com/in/ {kw}')
+        if status_terms:
+            for term in status_terms[:2]:
+                queries.append(f'site:linkedin.com/in/ {kw} {term}')
     for kw_single in keywords[:3]:
         queries.append(f'site:linkedin.com/in/ {kw_single}')
 
