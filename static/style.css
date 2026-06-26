@@ -343,14 +343,15 @@ body {
   border: 3px solid #e0e7ef;
   border-top-color: #0A66C2;
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  flex-shrink: 0;
+  animation: spin 
+/* ── Location line ───────────────────────────────────────────── */
+.card-location {
+  font-size: 12px;
+  color: #555;
+  margin: 2px 0 4px;
+  font-weight: 500;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-.spinner-label { color: #888; font-size: 13px; }
-r-radius: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-  margin-bottom: 14px; overflow: hidden; padding-bottom: 18px;
+-bottom: 18px;
 }
 .skeleton-banner { height: 52px; background: #e9ecef; }
 .skeleton-body   { padding: 0 18px; display: flex; gap: 16px; margin-top: 4px; }
