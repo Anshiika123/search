@@ -370,7 +370,7 @@ def search_profiles(keywords, region, api_key, fetch_size, status_filter="all"):
             if signals["exp_years"] >= 5: score += 2
             elif signals["exp_years"] >= 2: score += 1
             if signals["is_active"]:      score += 1
-            if signals["open_to_work"]:   score += 1
+            if signals["open_to_work"]:   score += 5  # big boost so OTW profiles rank first
 
             post_search = f"https://www.linkedin.com/search/results/content/?keywords={urllib.parse.quote(author)}"
             candidates.append((score, {
@@ -513,20 +513,21 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
             region_filter_applied = True
             all_posts = in_region  # never pad with non-region results
 
-    # Status filter
+    # Status filter — always supplement with non-matching results so we never return 0
     if status_filter == "open_to_work":
-        filtered = [p for p in all_posts if p.get("open_to_work")]
+        matched = [p for p in all_posts if p.get("open_to_work")]
+        others  = [p for p in all_posts if not p.get("open_to_work")]
+        filtered = matched + others  # OTW already scored +5 so they're at top
     elif status_filter == "working":
-        filtered = [p for p in all_posts if p.get("current_company") and not p.get("open_to_work")]
+        matched = [p for p in all_posts if p.get("current_company") and not p.get("open_to_work")]
+        others  = [p for p in all_posts if p not in matched]
+        filtered = matched + others
     elif status_filter == "experienced":
-        filtered = [p for p in all_posts if p.get("exp_years", 0) >= 1 or p.get("seniority_score", 0) >= 1]
+        matched = [p for p in all_posts if p.get("exp_years", 0) >= 1 or p.get("seniority_score", 0) >= 1]
+        others  = [p for p in all_posts if p not in matched]
+        filtered = matched + others
     else:
         filtered = all_posts
-
-    # Supplement if filter too strict
-    if len(filtered) < max_results and status_filter != "all":
-        extras = [p for p in all_posts if p not in filtered]
-        filtered = filtered + extras
 
     posts = filtered[:max_results]
 
@@ -736,7 +737,7 @@ def search_stream():
             if signals["exp_years"] >= 5: score += 2
             elif signals["exp_years"] >= 2: score += 1
             if signals["is_active"]:      score += 1
-            if signals["open_to_work"]:   score += 1
+            if signals["open_to_work"]:   score += 5  # big boost so OTW profiles rank first
             post_search = "https://www.linkedin.com/search/results/content/?keywords=" + urllib.parse.quote(author)
             return {
                 "author_name":       author,
