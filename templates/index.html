@@ -35,19 +35,69 @@
 
       <div class="sb-section">
         <div class="sb-title">Region <span class="sb-hint">optional</span></div>
+        <select id="regionSelect" class="sb-select" onchange="handleRegionChange(this)">
+          <option value="">— No filter —</option>
+          <optgroup label="🇮🇳 India">
+            <option value="Bangalore India">Bangalore</option>
+            <option value="Delhi India">Delhi / NCR</option>
+            <option value="Mumbai India">Mumbai</option>
+            <option value="Hyderabad India">Hyderabad</option>
+            <option value="Pune India">Pune</option>
+            <option value="Chennai India">Chennai</option>
+            <option value="Noida India">Noida</option>
+            <option value="Gurugram India">Gurugram</option>
+            <option value="Kolkata India">Kolkata</option>
+            <option value="Ahmedabad India">Ahmedabad</option>
+            <option value="Jaipur India">Jaipur</option>
+            <option value="Kochi India">Kochi</option>
+            <option value="Chandigarh India">Chandigarh</option>
+            <option value="Indore India">Indore</option>
+            <option value="Lucknow India">Lucknow</option>
+            <option value="Coimbatore India">Coimbatore</option>
+            <option value="Nagpur India">Nagpur</option>
+            <option value="Surat India">Surat</option>
+          </optgroup>
+          <optgroup label="🇺🇸 USA">
+            <option value="New York USA">New York</option>
+            <option value="San Francisco USA">San Francisco</option>
+            <option value="California USA">California</option>
+            <option value="Seattle USA">Seattle</option>
+            <option value="Austin USA">Austin</option>
+            <option value="Boston USA">Boston</option>
+            <option value="Chicago USA">Chicago</option>
+            <option value="Los Angeles USA">Los Angeles</option>
+            <option value="Atlanta USA">Atlanta</option>
+            <option value="Dallas USA">Dallas</option>
+            <option value="Washington DC USA">Washington DC</option>
+          </optgroup>
+          <optgroup label="🇬🇧 UK">
+            <option value="London UK">London</option>
+            <option value="Manchester UK">Manchester</option>
+            <option value="Birmingham UK">Birmingham</option>
+          </optgroup>
+          <optgroup label="🇨🇦 Canada">
+            <option value="Toronto Canada">Toronto</option>
+            <option value="Vancouver Canada">Vancouver</option>
+            <option value="Montreal Canada">Montreal</option>
+          </optgroup>
+          <optgroup label="🌏 Asia Pacific">
+            <option value="Singapore">Singapore</option>
+            <option value="Sydney Australia">Sydney</option>
+            <option value="Melbourne Australia">Melbourne</option>
+            <option value="Tokyo Japan">Tokyo</option>
+            <option value="Hong Kong">Hong Kong</option>
+          </optgroup>
+          <optgroup label="🌍 Middle East &amp; Europe">
+            <option value="Dubai UAE">Dubai</option>
+            <option value="Berlin Germany">Berlin</option>
+            <option value="Amsterdam Netherlands">Amsterdam</option>
+            <option value="Paris France">Paris</option>
+          </optgroup>
+          <option value="__custom__">✏️ Type custom region...</option>
+        </select>
         <input type="text" id="regionCustom" class="sb-input"
-               list="regionList" placeholder="e.g. Bangalore, New York..." />
-        <datalist id="regionList">
-          <option value="Bangalore India"><option value="Delhi India">
-          <option value="Mumbai India"><option value="Hyderabad India">
-          <option value="Pune India"><option value="Chennai India">
-          <option value="Noida India"><option value="Gurugram India">
-          <option value="California USA"><option value="New York USA">
-          <option value="San Francisco USA"><option value="Seattle USA">
-          <option value="London UK"><option value="Toronto Canada">
-          <option value="Sydney Australia"><option value="Singapore">
-          <option value="Dubai UAE"><option value="Berlin Germany">
-        </datalist>
+               placeholder="e.g. Bhopal India, Lagos Nigeria..."
+               style="display:none; margin-top:7px"/>
       </div>
 
       <hr class="sb-divider"/>
@@ -159,6 +209,18 @@
     currentStatus = btn.dataset.status;
   }
 
+  function handleRegionChange(sel) {
+    const custom = document.getElementById('regionCustom');
+    custom.style.display = sel.value === '__custom__' ? 'block' : 'none';
+    if (sel.value === '__custom__') custom.focus();
+  }
+
+  function getRegion() {
+    const sel = document.getElementById('regionSelect');
+    if (sel.value === '__custom__') return document.getElementById('regionCustom').value.trim();
+    return sel.value;
+  }
+
   let activeES = null;
 
   function cardHTML(p, i, region) {
@@ -220,7 +282,7 @@
     const topic = document.getElementById('topic').value.trim();
     if (!topic) { alert('Please enter a topic!'); return; }
 
-    const region     = document.getElementById('regionCustom').value.trim();
+    const region     = getRegion();
     const maxResults = parseInt(document.getElementById('maxResults').value);
     const btn        = document.getElementById('searchBtn');
 
