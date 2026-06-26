@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response, stream_with_context
 import requests
 import re
 import os
 import io
+import json
 import urllib.parse
 from datetime import datetime
 from pathlib import Path
@@ -27,7 +28,6 @@ def keyword_score(text: str, keywords: list) -> int:
 
 
 def serpapi_search(query: str, api_key: str, num: int = 10) -> list:
-    """Call SerpAPI Google Search — 1 API credit per call."""
     try:
         resp = requests.get("https://serpapi.com/search", params={
             "q": query, "api_key": api_key,
@@ -43,59 +43,20 @@ def serpapi_search(query: str, api_key: str, num: int = 10) -> list:
         return []
 
 
-def build_profile_queries(kw: str, keywords: list, region_q: str,
-                          status_filter: str) -> list:
-    """Return query list ordered best-first. Each query = 1 API credit."""
-    queries = []
-
-    # Status-specific prefix terms to find more matching profiles
-    status_terms = {
-        "open_to_work":  ["open to work", "seeking opportunities", "available"],
-        "working":       ["software engineer", "developer", "analyst", "manager"],
-        "experienced":   ["senior", "lead", "5 years", "7 years", "10 years",
-                          "experienced", "principal", "architect"],
-    }.get(status_filter, [])
-
-    if region_q:
-        queries.append(f'site:linkedin.com/in/ {kw} {region_q}')
-        if status_terms:
-            queries.append(f'site:linkedin.com/in/ {kw} {status_terms[0]} {region_q}')
-        for kw_single in keywords[:2]:
-            queries.append(f'site:linkedin.com/in/ {kw_single} {region_q}')
-
-    queries.append(f'site:linkedin.com/in/ {kw}')
-    if status_terms:
-        for term in status_terms[:3]:
-            queries.append(f'site:linkedin.com/in/ {kw} {term}')
-    for kw_single in keywords[:3]:
-        queries.append(f'site:linkedin.com/in/ {kw_single}')
-
-    # Deduplicate while preserving order
-    seen_q, unique = set(), []
-    for q in queries:
-        if q not in seen_q:
-            seen_q.add(q)
-            unique.append(q)
-    return unique
-
-
 def parse_profile_signals(snippet: str, title: str) -> dict:
-    """Extract current company, job title, open to work, seniority from snippet/title."""
     text = (title + " " + snippet).lower()
     raw  = title + " " + snippet
 
     open_to_work = any(p in text for p in [
         "open to work", "open to opportunities", "looking for opportunities",
-        "seeking new role", "available for hire", "actively looking"
+        "seeking new role", "available for hire", "actively looking", "#opentowork"
     ])
 
     current_company = ""
-    company_patterns = [
+    for pat in [
         r'\bat\s+([A-Z][A-Za-z0-9\s&.,]{2,30}?)(?:\s*[|·\-]|\s*$)',
         r'[@·]\s*([A-Z][A-Za-z0-9\s&.,]{2,25}?)(?:\s*[|·\-]|\s*$)',
-        r'-\s*([A-Z][A-Za-z0-9\s&.,]{2,25}?)\s*(?:LinkedIn|$)',
-    ]
-    for pat in company_patterns:
+    ]:
         m = re.search(pat, raw)
         if m:
             candidate = m.group(1).strip().rstrip('.,')
@@ -104,29 +65,26 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
                 break
 
     job_title = ""
-    # Strip LinkedIn suffix first
     title_clean = re.sub(r'\s*\|\s*LinkedIn.*$', '', title, flags=re.I).strip()
     title_clean = re.sub(r'\s+on\s+LinkedIn.*$', '', title_clean, flags=re.I).strip()
     title_clean = re.sub(r'\s*-\s*LinkedIn.*$', '', title_clean, flags=re.I).strip()
-    # Split: first part = name, second part = job title
     parts = re.split(r'\s*[-–|·]\s*', title_clean, maxsplit=1)
     if len(parts) >= 2:
         candidate = parts[1].strip()
-        # Remove trailing ", MS" / ", PhD" / "..." artifacts
-        candidate = re.sub(r',\s*(MS|MBA|PhD|BSc|MSc|BE|BTech|MTech|CPA|CFA)\.?\s*\.{0,3}$', '', candidate, flags=re.I).strip()
+        candidate = re.sub(r',\s*(MS|MBA|PhD|BSc|MSc|BE|BTech|MTech)\.?\s*\.{0,3}$', '', candidate, flags=re.I).strip()
         candidate = re.sub(r'\s*\.{2,}$', '', candidate).strip()
         if len(candidate) > 3:
             job_title = candidate
 
     seniority_score = 0
-    seniority_keywords = {
-        5: ['cto','ceo','coo','ciso','chief','vp ','vice president','founder','co-founder'],
+    seniority_kws = {
+        5: ['cto','ceo','coo','chief','vp ','vice president','founder','co-founder'],
         4: ['director','head of','principal','distinguished','fellow'],
         3: ['senior','sr.','lead','staff','architect','manager'],
-        2: ['mid','associate','consultant','specialist'],
+        2: ['associate','consultant','specialist','analyst'],
         1: ['junior','jr.','intern','trainee','fresher','student'],
     }
-    for score, kws in seniority_keywords.items():
+    for score, kws in seniority_kws.items():
         if any(kw in text for kw in kws):
             seniority_score = score
             break
@@ -141,18 +99,16 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
         r'\b(\d+[hm]\s*ago|today|yesterday|just now|\d+\s*days?\s*ago|this week)\b', text
     ))
 
-    # Portfolio signals
     portfolio_checks = {
-        "GitHub":    ["github", "github.com"],
-        "Open Source": ["open source", "opensource", "open-source", "contributor"],
-        "Built":     ["built ", "i built", "we built", "developed ", "created "],
-        "Launched":  ["launched", "shipped", "released", "deployed"],
-        "Patent":    ["patent", "patented", "inventor"],
-        "Speaker":   ["speaker", "keynote", "ted talk", "conference"],
-        "Published": ["published", "author of", "wrote a book", "research paper"],
+        "GitHub":      ["github", "github.com"],
+        "Open Source": ["open source", "opensource", "contributor"],
+        "Built":       ["built ", "i built", "developed ", "created "],
+        "Launched":    ["launched", "shipped", "released"],
+        "Patent":      ["patent", "patented", "inventor"],
+        "Speaker":     ["speaker", "keynote", "ted talk"],
+        "Published":   ["published", "author of", "research paper"],
     }
     portfolio_signals = [label for label, kws in portfolio_checks.items() if any(kw in text for kw in kws)]
-    portfolio_score = len(portfolio_signals)
 
     return {
         "current_company": current_company,
@@ -162,76 +118,102 @@ def parse_profile_signals(snippet: str, title: str) -> dict:
         "exp_years": exp_years,
         "is_active": is_active,
         "portfolio_signals": portfolio_signals,
-        "portfolio_score": portfolio_score,
+        "portfolio_score": len(portfolio_signals),
     }
 
 
-
-
 def clean_author_name(raw: str) -> str:
-    """Convert slug or raw title fragment into a proper human name."""
-    # Remove trailing junk: ", MS", ", PhD", "| something", "- something"
-    raw = re.sub(r'[,|·–\-]\s*(MS|MBA|PhD|BSc|MSc|BE|BTech|MTech|CPA|CFA)\.?.*$', '', raw, flags=re.I).strip()
+    if not raw:
+        return ""
+    raw = re.sub(r'[,|·–]\s*(MS|MBA|PhD|BSc|MSc|BE|BTech|MTech|CPA|CFA)\.?.*$', '', raw, flags=re.I).strip()
     raw = re.sub(r'[|·–].*$', '', raw).strip()
-    # If it looks like a slug (no spaces, mostly lowercase), split on hyphens
     if ' ' not in raw and '-' in raw:
         raw = raw.replace('-', ' ')
-    # Title-case each word, keep short words lowercase (a, of, at etc.)
+    if ' ' not in raw:
+        raw = re.sub(r'([a-z])([A-Z])', r'\1 \2', raw)
     words = raw.split()
     stop = {'a','an','the','of','at','in','on','and','or','for','to'}
     name = ' '.join(w.capitalize() if w.lower() not in stop or i == 0 else w
                     for i, w in enumerate(words))
-    return name.strip() or "LinkedIn User"
+    return name.strip()
 
 
 def extract_author(url: str, title: str) -> tuple:
-    author_name = "LinkedIn User"
     profile_url = ""
+    raw_name = ""
     clean = re.sub(r'<[^>]+>', '', title).strip()
 
-    # Try to get name from title — order matters
-    if " on LinkedIn" in clean:
-        author_name = clean.split(" on LinkedIn")[0].strip()
-    elif " | LinkedIn" in clean:
-        author_name = clean.split(" | LinkedIn")[0].strip()
-    elif " - LinkedIn" in clean:
-        author_name = clean.split(" - LinkedIn")[0].strip()
-    elif " - " in clean and "LinkedIn" in clean:
-        author_name = clean.split(" - ")[0].strip()
+    # Strip LinkedIn suffix variants to get the name portion
+    for pat in [" on LinkedIn", " | LinkedIn", " - LinkedIn"]:
+        if pat in clean:
+            raw_name = clean.split(pat)[0].strip()
+            break
+    if not raw_name and " - " in clean and "LinkedIn" in clean:
+        raw_name = clean.split(" - ")[0].strip()
 
-    # Strip job title from name if present (e.g. "Aaron Hall - Python Instructor | LinkedIn")
-    # Name is usually first 1-3 words before a dash/pipe
-    if author_name and author_name != "LinkedIn User":
-        # If it contains " - " the first part is the name
-        parts = re.split(r'\s*[-–|·]\s*', author_name)
-        author_name = parts[0].strip()
+    # Take only the first segment (before any role/company separator)
+    if raw_name:
+        raw_name = re.split(r'\s*[-–|·]\s*', raw_name)[0].strip()
 
-    author_name = clean_author_name(author_name)
+    # Fallback: grab "FirstName LastName" pattern directly from title
+    if not raw_name or (raw_name and ' ' not in raw_name):
+        m = re.search(r'\b([A-Z][a-z]{1,20}\s+[A-Z][a-z]{1,20}(?:\s+[A-Z][a-z]{1,15})?)\b', clean)
+        if m:
+            raw_name = m.group(1).strip()
 
     slug_m = re.search(r'linkedin\.com/in/([a-zA-Z0-9][a-zA-Z0-9\-]+)', url)
     if slug_m:
         slug = re.sub(r'-\d{10,}.*$', '', slug_m.group(1)).strip('-')
         profile_url = f"https://www.linkedin.com/in/{slug}"
-        if author_name == "LinkedIn User":
-            author_name = clean_author_name(slug)
+        if not raw_name:
+            raw_name = slug
 
     slug_m2 = re.search(r'linkedin\.com/posts/([a-zA-Z0-9][a-zA-Z0-9\-]+)', url)
     if slug_m2 and not profile_url:
         slug = re.sub(r'-\d{10,}.*$', '', slug_m2.group(1)).strip('-')
         profile_url = f"https://www.linkedin.com/in/{slug}"
-        if author_name == "LinkedIn User":
-            author_name = clean_author_name(slug)
+        if not raw_name:
+            raw_name = slug
 
+    author_name = clean_author_name(raw_name)
     return author_name, profile_url
 
 
-def search_profiles(keywords, region, api_key, max_results, status_filter="all"):
+def build_profile_queries(kw: str, keywords: list, region_q: str, status_filter: str) -> list:
+    status_terms = {
+        "open_to_work":  ["open to work", "seeking opportunities"],
+        "experienced":   ["senior", "lead", "5 years", "10 years", "architect"],
+    }.get(status_filter, [])
+
+    queries = []
+    if region_q:
+        queries.append(f'site:linkedin.com/in/ {kw} {region_q}')
+        if status_terms:
+            queries.append(f'site:linkedin.com/in/ {kw} {status_terms[0]} {region_q}')
+        for kw_single in keywords[:2]:
+            queries.append(f'site:linkedin.com/in/ {kw_single} {region_q}')
+
+    queries.append(f'site:linkedin.com/in/ {kw}')
+    if status_terms:
+        for term in status_terms[:2]:
+            queries.append(f'site:linkedin.com/in/ {kw} {term}')
+    for kw_single in keywords[:3]:
+        queries.append(f'site:linkedin.com/in/ {kw_single}')
+
+    seen_q, unique = set(), []
+    for q in queries:
+        if q not in seen_q:
+            seen_q.add(q)
+            unique.append(q)
+    return unique
+
+
+def search_profiles(keywords, region, api_key, fetch_size, status_filter="all"):
     kw = " ".join(keywords)
     region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
     region_q = " ".join(region_parts[:2]) if region_parts else ""
 
     queries = build_profile_queries(kw, keywords, region_q, status_filter)
-
     candidates = []
     seen = set()
 
@@ -251,37 +233,40 @@ def search_profiles(keywords, region, api_key, max_results, status_filter="all")
             seen.add(url)
 
             author, profile_url = extract_author(url, title)
+            if not author:
+                continue  # skip anonymous profiles
+
             full = (title + " " + snippet).lower()
             signals = parse_profile_signals(snippet, title)
             region_match = any(p.lower() in full for p in region_parts) if region_parts else False
 
             score = keyword_score(full, keywords)
-            if region_match: score += 3        # boost, not hard filter
+            if region_match:              score += 3
             score += signals["seniority_score"]
-            if signals["exp_years"] >= 3: score += 2
-            elif signals["exp_years"] >= 1: score += 1
-            if signals["is_active"]: score += 1
-            if signals["open_to_work"]: score += 1
+            score += signals["portfolio_score"]
+            if signals["exp_years"] >= 5: score += 2
+            elif signals["exp_years"] >= 2: score += 1
+            if signals["is_active"]:      score += 1
+            if signals["open_to_work"]:   score += 1
 
             post_search = f"https://www.linkedin.com/search/results/content/?keywords={urllib.parse.quote(author)}"
             candidates.append((score, {
                 "author_name": author,
                 "profile_url": profile_url or url,
                 "post_url": post_search,
-                "post_url_label": "🔍 Find Posts",
+                "post_url_label": "🔍 Search Their Posts",
                 "context": snippet[:400],
                 "matched_keywords": keyword_score(full, keywords),
                 "total_keywords": len(keywords),
                 "region_match": region_match,
-                "verified_signal": False,
                 "result_type": "profile",
-                "likes": 0, "comments": 0,
                 "current_company": signals["current_company"],
                 "job_title": signals["job_title"],
                 "open_to_work": signals["open_to_work"],
                 "seniority_score": signals["seniority_score"],
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
+                "portfolio_signals": signals["portfolio_signals"],
             }))
 
     return candidates
@@ -292,9 +277,10 @@ def search_posts(keywords, region, api_key):
     region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
     region_q = " ".join(region_parts[:2]) if region_parts else ""
 
-    queries = [f'site:linkedin.com/posts/ {kw}']
+    queries = []
     if region_q:
-        queries.insert(0, f'site:linkedin.com/posts/ {kw} {region_q}')
+        queries.append(f'site:linkedin.com/posts/ {kw} {region_q}')
+    queries.append(f'site:linkedin.com/posts/ {kw}')
     queries.append(f'site:linkedin.com/feed/update/ {kw}')
     for kw_single in keywords[:2]:
         queries.append(f'site:linkedin.com/posts/ {kw_single}')
@@ -318,12 +304,15 @@ def search_posts(keywords, region, api_key):
             seen.add(url)
 
             author, profile_url = extract_author(url, title)
+            if not author:
+                continue
+
             full = (title + " " + snippet).lower()
             signals = parse_profile_signals(snippet, title)
             region_match = any(p.lower() in full for p in region_parts) if region_parts else False
 
             score = keyword_score(full, keywords)
-            if region_match: score += 2
+            if region_match:         score += 2
             if signals["is_active"]: score += 1
 
             candidates.append((score, {
@@ -335,15 +324,14 @@ def search_posts(keywords, region, api_key):
                 "matched_keywords": keyword_score(full, keywords),
                 "total_keywords": len(keywords),
                 "region_match": region_match,
-                "verified_signal": False,
                 "result_type": "post",
-                "likes": 0, "comments": 0,
                 "current_company": signals["current_company"],
                 "job_title": signals["job_title"],
                 "open_to_work": signals["open_to_work"],
                 "seniority_score": signals["seniority_score"],
                 "exp_years": signals["exp_years"],
                 "is_active": signals["is_active"],
+                "portfolio_signals": signals["portfolio_signals"],
             }))
 
     return candidates
@@ -359,8 +347,8 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
     if not keywords:
         return {"error": "Please enter a topic."}
 
-    # Always fetch a large pool so filters have enough to work with
     fetch_size = max(50, max_results * 5)
+    region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
 
     candidates = []
     if search_mode in ("profiles", "both"):
@@ -371,58 +359,62 @@ def search_linkedin(topic, max_results=5, region="", verified_only=False,
     if not candidates:
         msg = f"No results found for '{topic}'"
         if region:
-            msg += f" in '{region}'. Try broader keywords or leave Region empty to search globally."
+            msg += f" in '{region}'. Try broader keywords or leave Region empty."
         else:
             msg += ". Try different keywords."
         return {"error": msg}
 
     candidates.sort(key=lambda x: x[0], reverse=True)
 
-    # Deduplicate full pool
+    # Deduplicate — type-specific key to avoid collision
     seen = set()
     all_posts = []
     for _, p in candidates:
-        key = p.get("profile_url") or p.get("post_url")
-        if key not in seen:
-            seen.add(key)
-            all_posts.append(p)
+        key = p.get("profile_url") if p.get("result_type") == "profile" else p.get("post_url", "")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        all_posts.append(p)
 
-    # Hard region filter: when a region is set, only show results from that region.
-    # If too few region matches, supplement with non-region results to reach max_results.
-    region_parts = [p for p in re.split(r'[\s,]+', region) if len(p) > 2] if region else []
+    # Region filter
+    region_filter_applied = False
     if region_parts:
         in_region  = [p for p in all_posts if p.get("region_match")]
         out_region = [p for p in all_posts if not p.get("region_match")]
-        if len(in_region) >= max_results:
-            all_posts = in_region                        # enough — show only region
-        elif in_region:
-            all_posts = in_region + out_region           # supplement to hit count
-        # else: no region signals detected in snippets → keep all (fallback)
+        if in_region:
+            region_filter_applied = True
+            all_posts = in_region if len(in_region) >= max_results else in_region + out_region
 
-    # Apply status filter on the (region-filtered) pool, then limit to max_results
+    # Status filter
     if status_filter == "open_to_work":
         filtered = [p for p in all_posts if p.get("open_to_work")]
     elif status_filter == "working":
         filtered = [p for p in all_posts if p.get("current_company") and not p.get("open_to_work")]
     elif status_filter == "experienced":
-        filtered = [p for p in all_posts if
-                    p.get("exp_years", 0) >= 1 or
-                    p.get("seniority_score", 0) >= 1]
+        filtered = [p for p in all_posts if p.get("exp_years", 0) >= 1 or p.get("seniority_score", 0) >= 1]
     else:
         filtered = all_posts
 
-    # If status filter is too strict and leaves fewer results than requested,
-    # supplement with the best unfiltered results so we always approach max_results.
+    # Supplement if filter too strict
     if len(filtered) < max_results and status_filter != "all":
-        supplement = [p for p in all_posts if p not in filtered]
-        filtered = filtered + supplement
+        extras = [p for p in all_posts if p not in filtered]
+        filtered = filtered + extras
 
     posts = filtered[:max_results]
 
-    return {"posts": posts, "topic": topic, "count": len(posts),
-            "total_pool": len(all_posts), "filtered_total": len(filtered),
-            "keywords": keywords, "region": region, "verified_only": verified_only,
-            "search_mode": search_mode, "status_filter": status_filter}
+    return {
+        "posts": posts,
+        "topic": topic,
+        "count": len(posts),
+        "total_pool": len(all_posts),
+        "filtered_total": len(filtered),
+        "keywords": keywords,
+        "region": region,
+        "region_filter_applied": region_filter_applied,
+        "verified_only": verified_only,
+        "search_mode": search_mode,
+        "status_filter": status_filter,
+    }
 
 
 @app.route("/debug")
@@ -436,16 +428,14 @@ def debug():
         data = resp.json()
     except Exception as e:
         return f"<pre>Error: {e}</pre>"
-
     if "error" in data:
-        return f"<h3>Query: {query}</h3><p style='color:red'>Error: {data['error']}</p>"
-
+        return f"<h3>{query}</h3><p style='color:red'>Error: {data['error']}</p>"
     items = data.get("organic_results", [])
-    out = f"<h3>Query: {query}</h3><p>Results: {len(items)}</p>"
+    out = f"<h3>{query}</h3><p>{len(items)} results</p>"
     for i, item in enumerate(items, 1):
         out += f"<hr><b>#{i}</b> {item.get('title','')}<br>"
-        out += f"<a href='{item.get('link','')}'>{ item.get('link','')}</a><br>"
-        out += f"Snippet: {item.get('snippet','')}"
+        out += f"<a href='{item.get('link','')}' target='_blank'>{item.get('link','')}</a><br>"
+        out += f"{item.get('snippet','')}"
     return out
 
 
@@ -460,15 +450,20 @@ def search():
     topic = data.get("topic", "").strip()
     if not topic:
         return jsonify({"error": "Please enter a topic."})
-    result = search_linkedin(
-        topic,
-        max_results=int(data.get("max_results", 5)),
-        region=data.get("region", "").strip(),
-        verified_only=bool(data.get("verified_only", False)),
-        search_mode=data.get("search_mode", "both"),
-        api_key=data.get("api_key", "").strip(),
-        status_filter=data.get("status_filter", "all"),
-    )
+    try:
+        result = search_linkedin(
+            topic,
+            max_results=int(data.get("max_results", 5)),
+            region=data.get("region", "").strip(),
+            verified_only=bool(data.get("verified_only", False)),
+            search_mode=data.get("search_mode", "both"),
+            api_key=data.get("api_key", "").strip(),
+            status_filter=data.get("status_filter", "all"),
+        )
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"error": f"Server error: {str(e)}"})
     if "posts" in result:
         search_results["last"] = result
     return jsonify(result)
@@ -506,12 +501,12 @@ def export():
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "LinkedIn Results"
-    hf = PatternFill("solid", fgColor="0A66C2")
+    hf    = PatternFill("solid", fgColor="0A66C2")
     hfont = Font(color="FFFFFF", bold=True, size=11)
-    thin = Side(style="thin", color="CCCCCC")
+    thin  = Side(style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    title_val = f'LinkedIn: "{topic}"' + (f' | {region}' if region else '') + f' — {len(posts)} results'
+    title_val = f'LinkedIn: "{topic}"' + (f' | {region}' if region else '') + f' -- {len(posts)} results'
     ws.merge_cells("A1:G1")
     ws["A1"].value = title_val
     ws["A1"].font  = Font(bold=True, size=13, color="0A66C2")
@@ -541,7 +536,7 @@ def export():
               post.get("profile_url",""),
               post.get("post_url",""),
               post.get("context",""),
-              "✓" if post.get("region_match") else "—"]
+              "Y" if post.get("region_match") else "-"]
         for c,v in enumerate(vals,1):
             cell=ws.cell(row=row,column=c,value=v)
             cell.fill=alt; cell.border=border
@@ -559,7 +554,110 @@ def export():
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+
+@app.route("/search_stream")
+def search_stream():
+    topic        = request.args.get("topic", "").strip()
+    region       = request.args.get("region", "").strip()
+    max_results  = int(request.args.get("max_results", 5))
+    search_mode  = request.args.get("search_mode", "both")
+    status_filter = request.args.get("status_filter", "all")
+    api_key      = request.args.get("api_key", "").strip() or SERPAPI_KEY
+
+    def generate():
+        if not topic or not api_key:
+            yield f"data: {json.dumps({'type':'error','msg':'Missing topic or API key'})}\n\n"
+            return
+
+        keywords     = parse_keywords(topic)
+        region_parts = [p for p in re.split(r"[\s,]+", region) if len(p) > 2] if region else []
+        region_q     = " ".join(region_parts[:2]) if region_parts else ""
+
+        seen       = set()
+        candidates = []
+        kw         = " ".join(keywords)
+
+        def process_item(item, result_type):
+            url     = item.get("link", "")
+            title   = item.get("title", "")
+            snippet = item.get("snippet", "")
+            if result_type == "profile":
+                if "linkedin.com/in/" not in url:
+                    return None
+            else:
+                if "linkedin.com/posts/" not in url and "linkedin.com/feed/update/" not in url:
+                    return None
+            url = url.replace("https://in.linkedin.com", "https://www.linkedin.com").split("?")[0].rstrip("/")
+            if url in seen:
+                return None
+            seen.add(url)
+            author, profile_url = extract_author(url, title)
+            if not author:
+                return None
+            full    = (title + " " + snippet).lower()
+            signals = parse_profile_signals(snippet, title)
+            region_match = any(p.lower() in full for p in region_parts) if region_parts else False
+            score = keyword_score(full, keywords)
+            if region_match:              score += 3
+            score += signals["seniority_score"]
+            score += signals["portfolio_score"]
+            if signals["exp_years"] >= 5: score += 2
+            elif signals["exp_years"] >= 2: score += 1
+            if signals["is_active"]:      score += 1
+            if signals["open_to_work"]:   score += 1
+            post_search = f"https://www.linkedin.com/search/results/content/?keywords={urllib.parse.quote(author)}"
+            return {
+                "author_name":      author,
+                "profile_url":      profile_url or url,
+                "post_url":         url if result_type == "post" else post_search,
+                "context":          snippet[:400],
+                "matched_keywords": keyword_score(full, keywords),
+                "total_keywords":   len(keywords),
+                "region_match":     region_match,
+                "result_type":      result_type,
+                "current_company":  signals["current_company"],
+                "job_title":        signals["job_title"],
+                "open_to_work":     signals["open_to_work"],
+                "seniority_score":  signals["seniority_score"],
+                "exp_years":        signals["exp_years"],
+                "is_active":        signals["is_active"],
+                "portfolio_signals": signals["portfolio_signals"],
+                "_score":           score,
+            }
+
+        queries = []
+        if search_mode in ("profiles", "both"):
+            if region_q:
+                queries.append(("profile", f"site:linkedin.com/in/ {kw} {region_q}"))
+            queries.append(("profile", f"site:linkedin.com/in/ {kw}"))
+            for k in keywords[:2]:
+                queries.append(("profile", f"site:linkedin.com/in/ {k} {(region_q + ' ').strip()}".strip()))
+        if search_mode in ("posts", "both"):
+            if region_q:
+                queries.append(("post", f"site:linkedin.com/posts/ {kw} {region_q}"))
+            queries.append(("post", f"site:linkedin.com/posts/ {kw}"))
+
+        total_q = len(queries)
+        for qi, (rtype, query) in enumerate(queries):
+            yield f"data: {json.dumps({'type':'progress','step':qi+1,'total':total_q,'query':query})}\n\n"
+            items = serpapi_search(query, api_key, num=10)
+            for item in items:
+                p = process_item(item, rtype)
+                if p:
+                    candidates.append(p)
+                    yield f"data: {json.dumps({'type':'result','profile':p})}\n\n"
+
+        candidates.sort(key=lambda x: x.get("_score", 0), reverse=True)
+        final = candidates[:max_results]
+        for p in final:
+            p.pop("_score", None)
+        yield f"data: {json.dumps({'type':'done','ranked':final,'total_pool':len(candidates),'topic':topic,'region':region,'keywords':keywords,'status_filter':status_filter})}\n\n"
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"\nLinkedIn Search App → http://localhost:{port}\n")
+    print(f"\nLinkedIn Search App -> http://localhost:{port}\n")
     app.run(debug=False, host="0.0.0.0", port=port)

@@ -82,12 +82,12 @@ body {
 
 /* ── Sidebar ─────────────────────────────────────────────────── */
 .sidebar {
-  width: 230px;
+  width: 260px;
   flex-shrink: 0;
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  padding: 18px 16px;
+  padding: 20px 18px;
   position: sticky;
   top: 78px;
 }
@@ -112,6 +112,10 @@ body {
 .sb-tab:last-of-type { margin-bottom: 0; }
 .sb-tab:hover  { border-color: #0A66C2; color: #0A66C2; background: #f0f6ff; }
 .sb-tab.active { background: #0A66C2; color: white; border-color: #0A66C2; }
+/* Status filter active colors per type */
+.sb-tab[data-status="open_to_work"].active  { background: #065f46; border-color: #065f46; }
+.sb-tab[data-status="working"].active        { background: #1e40af; border-color: #1e40af; }
+.sb-tab[data-status="experienced"].active    { background: #92400e; border-color: #92400e; }
 
 .sb-input, .sb-select {
   width: 100%; padding: 8px 11px;
@@ -259,9 +263,9 @@ body {
 .card-name a:hover { text-decoration: underline; }
 
 .card-jobtitle {
-  font-size: 13px; color: #444; margin-bottom: 10px;
-  font-style: italic; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; max-width: 100%;
+  font-size: 13px; color: #555; margin-bottom: 10px;
+  font-weight: 500; line-height: 1.4;
+  /* allow full title to wrap — no truncation */
 }
 
 /* ── Badges ──────────────────────────────────────────────────── */
@@ -305,29 +309,64 @@ body {
 .cbtn-fill:hover { background: #004182; }
 .cbtn-claude  { color: #7c3aed; border-color: #ddd6fe; background: #faf5ff; }
 .cbtn-claude:hover { background: #7c3aed; color: white; border-color: #7c3aed; }
+/* ── Copy button ─────────────────────────────────────────────── */
+.cbtn-copy   { color: #057642; border-color: #057642; background: white; cursor: pointer; }
+.cbtn-copy:hover { background: #057642; color: white; }
+.cbtn-copied { background: #057642 !important; color: white !important; }
 
-/* ── Key saved banner ────────────────────────────────────────── */
-.key-saved {
-  background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7;
-  padding: 10px 16px; border-radius: 9px; font-size: 13px;
-  font-weight: 500; margin-bottom: 16px;
+/* ── Card pop-in animation ───────────────────────────────────── */
+@keyframes cardPop {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
+.card-pop { animation: cardPop 0.3s ease forwards; }
 
-/* ── Creds setup card ────────────────────────────────────────── */
-.creds-setup {
-  background: white; border: 2px dashed #bfdbfe;
-  border-radius: 12px; padding: 18px 20px; margin-bottom: 16px;
+/* ── Spinner card (while result is loading) ──────────────────── */
+.spinner-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #e0e7ef;
+  min-height: 80px;
 }
-.creds-header { font-size: 14px; font-weight: 700; color: #0A66C2; margin-bottom: 8px; }
-.creds-steps  { font-size: 13px; color: #555; line-height: 2; margin-bottom: 14px; }
-.creds-steps a { color: #0A66C2; font-weight: 600; }
-.creds-row    { display: flex; gap: 10px; flex-wrap: wrap; }
-.creds-row input {
-  flex: 1; min-width: 200px; padding: 9px 12px;
-  border: 1.5px solid #e0e0e0; border-radius: 8px;
-  font-size: 13px; outline: none;
+.card-spinner {
+  width: 28px; height: 28px;
+  border: 3px solid #e0e7ef;
+  border-top-color: #0A66C2;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
-.creds-row input:focus { border-color: #0A66C2; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-label { color: #888; font-size: 13px; }
+r-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  margin-bottom: 14px; overflow: hidden; padding-bottom: 18px;
+}
+.skeleton-banner { height: 52px; background: #e9ecef; }
+.skeleton-body   { padding: 0 18px; display: flex; gap: 16px; margin-top: 4px; }
+.skeleton-circle {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #e9ecef; margin-top: -28px; flex-shrink: 0;
+  animation: shimmer 1.4s infinite;
+}
+.skeleton-lines  { flex: 1; padding-top: 10px; }
+.skeleton-line {
+  height: 12px; border-radius: 6px; background: #e9ecef;
+  margin-bottom: 10px; animation: shimmer 1.4s infinite;
+}
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-40 { width: 40%; }
+.skeleton-line.w-80 { width: 80%; }
+@keyframes shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
 
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 720px) {
