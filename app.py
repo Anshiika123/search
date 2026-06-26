@@ -783,23 +783,12 @@ def search_stream():
                     yield "data: " + json.dumps({"type": "result", "profile": p}) + "\n\n"
 
         candidates.sort(key=lambda x: x.get("_score", 0), reverse=True)
-
-        # Strict region filter — only show in-region results when region is set
-        region_filter_applied = False
-        pool = candidates
-        if region_parts:
-            in_region = [p for p in candidates if p.get("region_match")]
-            if in_region:
-                region_filter_applied = True
-                pool = in_region
-
-        final = pool[:max_results]
+        final = candidates[:max_results]
         for p in final:
             p.pop("_score", None)
         yield "data: " + json.dumps({
-            "type": "done", "ranked": final, "total_pool": len(pool),
-            "topic": topic, "region": region, "keywords": keywords,
-            "status_filter": status_filter, "region_filter_applied": region_filter_applied,
+            "type": "done", "ranked": final, "total_pool": len(candidates),
+            "topic": topic, "region": region, "keywords": keywords, "status_filter": status_filter,
         }) + "\n\n"
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
