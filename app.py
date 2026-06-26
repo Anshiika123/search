@@ -659,18 +659,3 @@ def search_stream():
                 if p:
                     candidates.append(p)
                     yield f"data: {json.dumps({'type':'result','profile':p})}\n\n"
-
-        candidates.sort(key=lambda x: x.get("_score", 0), reverse=True)
-        final = candidates[:max_results]
-        for p in final:
-            p.pop("_score", None)
-        yield f"data: {json.dumps({'type':'done','ranked':final,'total_pool':len(candidates),'topic':topic,'region':region,'keywords':keywords,'status_filter':status_filter})}\n\n"
-
-    return Response(stream_with_context(generate()), mimetype="text/event-stream",
-                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    print(f"\nLinkedIn Search App -> http://localhost:{port}\n")
-    app.run(debug=False, host="0.0.0.0", port=port)
